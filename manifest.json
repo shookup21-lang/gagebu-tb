@@ -1,7 +1,7 @@
 {
   "name": "TBDR 가계부",
   "short_name": "가계부",
-  "id": "./index.html",
+  "id": "/gagebu-tb/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
