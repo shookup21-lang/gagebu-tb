@@ -517,7 +517,7 @@ body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-14_18:20';
+const APP_BUILD = '2026-09-14_19:49';
 
 // 한국 시간(KST=UTC+9) 기준 yyyymmdd_HHMM 문자열 반환
 // 폰의 timezone 설정과 무관하게 항상 한국 시간으로 동작
@@ -1730,8 +1730,6 @@ function renderSettings(){
 
   // ── 4) 앱 정보 ──────────────────────────
   h+='<div class="settings-section"><div class="settings-section-title">앱 정보</div><div class="settings-row" style="cursor:default"><div class="settings-row-left"><div class="settings-row-title">TBDR 가계부</div><div class="settings-row-sub">'+APP_BUILD+' · 개인용</div></div></div></div>';
-
-  h+='</div>';
 
   // ── 5) 위험 ────────────────────────────
   h+='<div class="settings-section"><div class="settings-section-title">위험</div>';
@@ -5043,7 +5041,7 @@ const firebaseConfig = {
 };
 /* ▲▲▲ 여기까지 ▲▲▲ */
 
-window.TBDR_FB = { configured: false };
+window.TBDR_FB = { configured: false, loading: false };
 
 if (String(firebaseConfig.projectId).indexOf('여기에') === -1) {
   try {
@@ -5072,7 +5070,7 @@ if (String(firebaseConfig.projectId).indexOf('여기에') === -1) {
       }
     };
   } catch (e) {
-    window.TBDR_FB = { configured: false, error: e.message };
+    window.TBDR_FB = { configured: false, loading: false, error: e.message };
   }
 }
 </script>
@@ -5083,6 +5081,9 @@ if (String(firebaseConfig.projectId).indexOf('여기에') === -1) {
    - 데이터는 부부 공유 암호로 암호화해서 올라갑니다
    - 순서가 뒤바뀌면 덮어쓰기를 자동으로 막습니다
    ═══════════════════════════════════════════════ */
+
+// Firebase SDK(모듈)는 나중에 로드되므로, 그 전까지는 '준비 중' 상태로 둔다
+if (!window.TBDR_FB) window.TBDR_FB = { configured:false, loading:true };
 
 var SYNC_NAME_KEY = 'tdbr_sync_name';     // 내 이름 (남편/아내)
 var SYNC_PASS_KEY = 'tdbr_sync_pass';     // 부부 공유 암호
@@ -5133,8 +5134,19 @@ function openSyncSettings(){
 }
 
 function syncReady(){
-  if (!window.TBDR_FB || !window.TBDR_FB.configured) {
-    alert('⚠️ Firebase 설정이 아직 안 됐습니다.\n\nindex.html 상단의 firebaseConfig에\nFirebase 콘솔에서 복사한 값을 넣어주세요.');
+  if (!window.crypto || !window.crypto.subtle) {
+    alert('⚠️ 암호화 기능을 쓸 수 없습니다.\n\nhttps:// 주소로 접속해야 합니다.\n파일을 직접 열거나 http로 접속하면 동작하지 않습니다.');
+    return false;
+  }
+  var fb = window.TBDR_FB;
+  if (!fb || fb.loading) {
+    alert('서버 연결을 준비하는 중입니다.\n\n잠시 후 다시 눌러주세요.\n(계속 이러면 인터넷 연결을 확인해주세요)');
+    return false;
+  }
+  if (!fb.configured) {
+    alert(fb.error
+      ? ('⚠️ Firebase 연결 실패\n\n' + fb.error)
+      : '⚠️ Firebase 설정이 아직 안 됐습니다.\n\nindex.html 상단의 firebaseConfig에\nFirebase 콘솔에서 복사한 값을 넣어주세요.');
     return false;
   }
   if (!syncGetName() || !syncGetPass()) {
@@ -5299,7 +5311,9 @@ function _syncErr(e){
 
 // 설정 화면에 표시할 현재 상태 문구
 function syncStatusText(){
-  if (!window.TBDR_FB || !window.TBDR_FB.configured) return 'Firebase 설정 필요';
+  var fb = window.TBDR_FB;
+  if (!fb || fb.loading) return '서버 연결 준비 중…';
+  if (!fb.configured) return fb.error ? ('연결 실패 · ' + fb.error) : 'Firebase 설정 필요';
   if (!syncGetName() || !syncGetPass()) return '공유 설정을 먼저 해주세요';
   var i = syncGetInfo();
   if (!i) return syncGetName() + ' · 아직 주고받은 적 없음';
