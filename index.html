@@ -4707,7 +4707,9 @@ function getCatBgColor(cat){
 // PWA 서비스워커 등록 (오프라인 지원 + 온라인 시 최신 화면 자동 반영)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('service-worker.js').catch(function () {});
+    navigator.serviceWorker.register('service-worker.js')
+      .then(function (r) { console.log('SW OK:', r.scope); })
+      .catch(function (e) { console.error('SW FAIL:', e); });
   });
 }
 </script>
