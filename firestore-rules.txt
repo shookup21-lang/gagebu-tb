@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // TBDR 가계부: 익명 로그인한 사용자만 읽고 쓸 수 있음
+    // (실제 내용은 부부 공유 암호로 암호화되어 있어 열어도 읽을 수 없음)
+    match /ledgers/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 그 외 모든 경로는 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

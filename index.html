@@ -388,6 +388,14 @@
 .type-btn { padding:7px 12px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-sub); font-size:13px; cursor:pointer; transition:all 0.12s; font-family:inherit; white-space:nowrap; }
 .type-btn.selected { background:#4caf50; border-color:#4caf50; color:#fff; font-weight:600; }
 .yellow-val { color: var(--yellow); }
+.sync-card { padding:14px 16px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:12px; }
+.sync-status { font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+.sync-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.sync-btn { padding:15px 8px; border-radius:12px; border:none; cursor:pointer; font-size:14.5px; font-weight:700; font-family:inherit; }
+.sync-btn:active { opacity:0.75; }
+.sync-btn.up { background:#0ea5e9; color:#fff; }
+.sync-btn.down { background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; }
+body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color:#334155; }
 .stats-summary2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 </style>
 <link rel="manifest" href="manifest.json">
@@ -836,7 +844,9 @@ async function measureStorageLimit(){
     
     // 설정 페이지가 열려있으면 다시 그려서 위쪽 표시 갱신
     setTimeout(function(){
-      if(document.getElementById('settings-page')?.classList.contains('active')){
+      if(document.getElementById('backup-page')?.classList.contains('active')){
+        renderBackupPage();
+      } else if(document.getElementById('settings-page')?.classList.contains('active')){
         renderSettings();
       }
     }, 200);
@@ -1692,12 +1702,50 @@ function renderSettings(){
     midCount+=Object.keys(mids).length;
     Object.values(mids).forEach(function(subs){subCount+=(subs||[]).length;});
   });
+  const _sz = JSON.stringify(records).length;
+  const sizeMB = (_sz / 1024 / 1024).toFixed(2);
   let h='';
-  h+='<div class="settings-section"><div class="settings-section-title">분류 관리</div>';
+
+  // ── 1) 가족 공유 ─────────────────────────
+  const _sync = (typeof syncStatusText==='function') ? syncStatusText() : '';
+  h+='<div class="settings-section"><div class="settings-section-title">가족 공유</div>';
+  h+='<div class="sync-card"><div class="sync-status">'+_sync+'</div><div class="sync-actions">';
+  h+='<button type="button" class="sync-btn up" onclick="syncUpload()">↑ 서버에 저장</button>';
+  h+='<button type="button" class="sync-btn down" onclick="syncDownload()">↓ 불러오기</button>';
+  h+='</div></div>';
+  h+='<div class="settings-row" onclick="openSyncSettings()"><div class="settings-row-left"><div class="settings-row-title">공유 설정</div><div class="settings-row-sub">내 이름과 부부 공유 암호</div></div><div class="settings-row-right">›</div></div>';
+  h+='</div>';
+
+  // ── 2) 기본 설정 ─────────────────────────
+  h+='<div class="settings-section"><div class="settings-section-title">기본 설정</div>';
   h+='<div class="settings-row" onclick="showCategoryManager()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><rect x="4" y="3" width="6" height="6" rx="1" fill="#fce7f3"/><rect x="14" y="3" width="6" height="6" rx="1" fill="#fce7f3"/><rect x="4" y="15" width="6" height="6" rx="1" fill="#fce7f3"/><rect x="14" y="15" width="6" height="6" rx="1" fill="#fce7f3"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="17" y1="9" x2="17" y2="12"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="12" x2="7" y2="15"/><line x1="17" y1="12" x2="17" y2="15"/></svg> 중분류/소분류 설정</div><div class="settings-row-sub">중분류 '+midCount+'개 · 소분류 '+subCount+'개</div></div><div class="settings-row-right">›</div></div>';
   h+='<div class="settings-row" onclick="showPayMethodSettings()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><rect x="2" y="5" width="20" height="14" rx="2.5" fill="#e0f2fe"/><line x1="2" y1="10" x2="22" y2="10" stroke="#0ea5e9"/></svg> 내 지갑 설정</div><div class="settings-row-sub">계좌/카드/저축·대출 관리</div></div><div class="settings-row-right">›</div></div>';
-  h+='<div class="settings-row" onclick="showDefaultSettings()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#fef3c7"/></svg> 분류·지갑·저축·대출 설정 관리</div><div class="settings-row-sub">전체 설정 저장&불러오기 및 초기화</div></div><div class="settings-row-right">›</div></div></div>';
-  h+='<div class="settings-section"><div class="settings-section-title">데이터 관리</div>';
+  h+='<div class="settings-row" onclick="showDefaultSettings()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#fef3c7"/></svg> 초기 설정 저장·복원</div><div class="settings-row-sub">분류·지갑 구성을 저장해두고 되돌리기</div></div><div class="settings-row-right">›</div></div></div>';
+  h+='</div>';
+
+  // ── 3) 백업 · 파일 ──────────────────────
+  h+='<div class="settings-section"><div class="settings-section-title">백업 · 파일</div>';
+  h+='<div class="settings-row" onclick="showBackupPage()"><div class="settings-row-left"><div class="settings-row-title">백업과 내보내기</div><div class="settings-row-sub">파일 백업·복구 · CSV · 저장 공간 '+sizeMB+' MB</div></div><div class="settings-row-right">›</div></div>';
+  h+='</div>';
+
+  // ── 4) 앱 정보 ──────────────────────────
+  h+='<div class="settings-section"><div class="settings-section-title">앱 정보</div><div class="settings-row" style="cursor:default"><div class="settings-row-left"><div class="settings-row-title">TBDR 가계부</div><div class="settings-row-sub">'+APP_BUILD+' · 개인용</div></div></div></div>';
+
+  h+='</div>';
+
+  // ── 5) 위험 ────────────────────────────
+  h+='<div class="settings-section"><div class="settings-section-title">위험</div>';
+  h+='<div class="settings-row" onclick="confirmClearAll()"><div class="settings-row-left"><div class="settings-row-title" style="color:var(--red)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="#fee2e2"/></svg> 전체 데이터 삭제</div><div class="settings-row-sub">모든 기록을 삭제합니다 (복구 불가)</div></div><div class="settings-row-right">›</div></div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// ══ 백업 · 파일 하위 페이지 ══
+function showBackupPage(){ showPage('backup-page'); renderBackupPage(); }
+function renderBackupPage(){
+  const el=document.getElementById('backup-body'); if(!el) return;
+  let h='';
+  h+='<div class="settings-section"><div class="settings-section-title">저장 공간</div>';
   // 저장 공간 상태 표시
   const storageSize = JSON.stringify(records).length;
   const sizeMB = (storageSize / 1024 / 1024).toFixed(2);
@@ -1722,11 +1770,16 @@ function renderSettings(){
   h+='</div>';
   h+='<div id="measure-progress" style="display:none;flex-direction:column;gap:6px"><div style="background:var(--card);border-radius:6px;height:6px;overflow:hidden"><div id="measure-bar" style="background:var(--accent);height:100%;width:0%;transition:width 0.2s"></div></div><div id="measure-status" style="font-size:12px;color:var(--text-sub)"></div></div>';
   h+='</div>';
+  h+='</div>';
+  h+='<div class="settings-section"><div class="settings-section-title">전체 백업 (권장)</div>';
+  h+='<div class="settings-row" onclick="exportFullBackup()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#dbeafe"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="8" x2="12" y2="17"/></svg> 전체 백업 내보내기 (JSON)</div><div class="settings-row-sub">기록·분류·카드·지갑 전부를 파일 1개로 · 가족 공유용</div></div><div class="settings-row-right">›</div></div>';
+  h+='<div class="settings-row" onclick="triggerFullImport()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#ede9fe"/><polyline points="8 13 12 17 16 13"/><line x1="12" y1="17" x2="12" y2="8"/></svg> 전체 백업 불러오기 (JSON)</div><div class="settings-row-sub">합치기(가족 공유) / 덮어쓰기(복구) 선택</div></div><div class="settings-row-right">›</div></div>';
+  h+='</div>';
+  h+='<div class="settings-section"><div class="settings-section-title">CSV (엑셀용)</div>';
   h+='<div class="settings-row" onclick="exportCSV()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="#d1fae5"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> 데이터 내보내기 (CSV)</div><div class="settings-row-sub">전체 기록을 CSV로 저장</div></div><div class="settings-row-right">›</div></div>';
   h+='<div class="settings-row" onclick="triggerCSVImport()"><div class="settings-row-left"><div class="settings-row-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="#fef3c7"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 데이터 불러오기 (CSV)</div><div class="settings-row-sub">CSV 파일을 앱으로 가져오기</div></div><div class="settings-row-right">›</div></div>';
   h+='<input type="file" id="csv-import-input" accept=".csv,text/csv,text/comma-separated-values,application/csv,text/plain" style="display:none" onchange="handleCSVImport(event)">';
-  h+='<div class="settings-row" onclick="confirmClearAll()"><div class="settings-row-left"><div class="settings-row-title" style="color:var(--red)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="#fee2e2"/></svg> 전체 데이터 삭제</div><div class="settings-row-sub">모든 기록을 삭제합니다 (복구 불가)</div></div><div class="settings-row-right">›</div></div></div>';
-  h+='<div class="settings-section"><div class="settings-section-title">앱 정보</div><div class="settings-row" style="cursor:default"><div class="settings-row-left"><div class="settings-row-title">TBDR 가계부</div><div class="settings-row-sub">'+APP_BUILD+' · 개인용</div></div></div></div>';
+  h+='</div>';
   el.innerHTML=h;
 }
 function saveAsDefault(){
@@ -4584,6 +4637,14 @@ function getCatBgColor(cat){
   <div style="padding:16px;padding-bottom:80px" id="default-settings-body"></div>
 </div>
 
+<div id="backup-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showSettings()">‹</button>
+    <span class="page-title">백업과 내보내기</span>
+  </div>
+  <div style="padding:16px;padding-bottom:80px" id="backup-body"></div>
+</div>
+
 <div id="account-balance-page" class="page">
   <div class="page-header">
     <button class="back-btn" onclick="backToMain()">‹</button>
@@ -4704,12 +4765,554 @@ function getCatBgColor(cat){
 </div>
 
 <script>
+/* ═══════════════════════════════════════════════
+   전체 백업 / 가족 공유 (JSON 파일 방식)
+   - 내보내기: 앱의 모든 데이터를 JSON 파일 1개로 저장·공유
+   - 불러오기: 합치기(가족 공유) / 덮어쓰기(백업 복구) 선택
+   ═══════════════════════════════════════════════ */
+
+// 앱이 사용하는 모든 저장소 키 (철자 tdbr_ / tbdr_ 혼용분 모두 포함)
+var BACKUP_KEYS = [
+  'tdbr_v3',                  // 가계부 기록 본체
+  'tdbr_v3_categories',       // 분류
+  'tdbr_default_categories',  // 기본 분류
+  'tdbr_card_settings',       // 카드·결제일
+  'tdbr_pay_general',         // 내 지갑
+  'tdbr_settings',            // 설정
+  'tdbr_savings_accounts',    // 저축
+  'tdbr_loans_accounts',      // 대출
+  'tbdr_settings_saved'       // 설정 스냅샷
+];
+
+// ── 내보내기 ───────────────────────────────────
+function _bkObject(){
+  var data = {};
+  BACKUP_KEYS.forEach(function(k){
+    var v = null;
+    try { v = localStorage.getItem(k); } catch(e) {}
+    if (v !== null) data[k] = v;
+  });
+  var cnt = 0;
+  try { cnt = JSON.parse(data['tdbr_v3'] || '[]').length; } catch(e) {}
+  return { app:'TBDR-GAGEBU', version:1, exportedAt:new Date().toISOString(), recordCount:cnt, data:data };
+}
+
+function _bkFileName(){
+  var d = new Date();
+  var p = function(n){ return String(n).padStart(2,'0'); };
+  return 'TBDR가계부_' + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate())
+       + '_' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+}
+
+function exportFullBackup(){
+  var json, blob, name;
+  try {
+    json = JSON.stringify(_bkObject());
+    blob = new Blob([json], { type:'application/json' });
+    name = _bkFileName();
+  } catch(e) {
+    alert('내보내기 실패: ' + e.message);
+    return;
+  }
+
+  // 모바일: 공유 시트로 카톡·드라이브에 바로 전송
+  if (navigator.canShare && typeof File === 'function') {
+    var file;
+    try { file = new File([blob], name, { type:'application/json' }); } catch(e) { file = null; }
+    if (file && navigator.canShare({ files:[file] })) {
+      navigator.share({ files:[file], title:'TBDR 가계부 백업' })
+        .catch(function(err){
+          if (err && err.name === 'AbortError') return;  // 사용자가 취소
+          _bkDownload(blob, name);
+        });
+      return;
+    }
+  }
+  _bkDownload(blob, name);
+}
+
+function _bkDownload(blob, name){
+  try {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  } catch(e) {
+    alert('파일 저장 실패: ' + e.message);
+  }
+}
+
+// ── 불러오기 ───────────────────────────────────
+function triggerFullImport(){
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = function(){
+    var f = inp.files && inp.files[0];
+    if (f) _bkRead(f);
+  };
+  inp.click();
+}
+
+function _bkRead(file){
+  var fr = new FileReader();
+  fr.onerror = function(){ alert('파일을 읽지 못했습니다.'); };
+  fr.onload = function(){
+    var obj;
+    try { obj = JSON.parse(fr.result); }
+    catch(e) { alert('백업 파일을 읽을 수 없습니다.\n\nJSON 백업 파일이 맞는지 확인하세요.\n(CSV 파일은 [데이터 불러오기 (CSV)]를 사용하세요)'); return; }
+
+    if (!obj || !obj.data || typeof obj.data['tdbr_v3'] !== 'string') {
+      alert('TBDR 가계부 백업 파일이 아닙니다.'); return;
+    }
+    var incoming;
+    try { incoming = JSON.parse(obj.data['tdbr_v3']); } catch(e) { incoming = null; }
+    if (!Array.isArray(incoming)) { alert('백업 파일의 기록 형식이 올바르지 않습니다.'); return; }
+
+    var when = '알 수 없음';
+    try { if (obj.exportedAt) when = new Date(obj.exportedAt).toLocaleString('ko-KR'); } catch(e) {}
+
+    var ok = confirm(
+      '📂 백업 파일 정보\n' +
+      '· 내보낸 시각: ' + when + '\n' +
+      '· 파일 속 기록: ' + incoming.length + '건\n' +
+      '· 현재 내 기록: ' + records.length + '건\n\n' +
+      '────────────────\n' +
+      '[확인] 합치기 → 내 기록은 그대로 두고 없는 것만 추가\n' +
+      '[취소] 덮어쓰기 선택으로 진행'
+    );
+
+    if (ok) { _bkMerge(obj, incoming); return; }
+
+    if (confirm(
+      '⚠️ 덮어쓰기\n\n' +
+      '이 기기의 모든 데이터(' + records.length + '건)를 지우고\n' +
+      '백업 파일(' + incoming.length + '건)로 완전히 교체합니다.\n\n' +
+      '되돌릴 수 없습니다. 진행할까요?'
+    )) {
+      _bkOverwrite(obj);
+    }
+  };
+  fr.readAsText(file, 'utf-8');
+}
+
+// 덮어쓰기 (백업 복구용)
+function _bkOverwrite(obj){
+  try {
+    BACKUP_KEYS.forEach(function(k){
+      if (typeof obj.data[k] === 'string') localStorage.setItem(k, obj.data[k]);
+      else localStorage.removeItem(k);
+    });
+    alert('✅ 복구 완료\n\n앱을 다시 불러옵니다.');
+    location.reload();
+  } catch(e) {
+    alert('복구 실패: ' + e.message + '\n\n저장 공간이 부족할 수 있습니다.');
+  }
+}
+
+// 합치기 (가족 공유용)
+function _bkSig(r){
+  return [r.date, r.type, r.cat, r.mid, r.sub, r.place, r.content, r.income, r.expense, r.pay].join('|');
+}
+
+function _bkMerge(obj, incoming){
+  try {
+    var mine  = records.slice();
+    var ids   = {};
+    var sigs  = {};
+    mine.forEach(function(r){ ids[String(r.id)] = 1; sigs[_bkSig(r)] = 1; });
+
+    var added = 0, skipped = 0;
+    incoming.forEach(function(r){
+      if (!r || !r.date) return;
+      var s = _bkSig(r);
+      if (ids[String(r.id)] || sigs[s]) { skipped++; return; }
+      mine.push(r);
+      ids[String(r.id)] = 1; sigs[s] = 1;
+      added++;
+    });
+    mine.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+
+    records = mine;
+    if (!save()) return;   // 저장 실패 시 기존 save()가 경고를 띄움
+
+    var nCat = _bkMergeCats(obj);
+    var nLst = _bkMergeLists(obj);
+
+    alert(
+      '✅ 합치기 완료\n\n' +
+      '· 새로 추가: ' + added + '건\n' +
+      '· 이미 있어서 건너뜀: ' + skipped + '건\n' +
+      '· 분류 추가: ' + nCat + '개\n' +
+      '· 지갑·카드 추가: ' + nLst + '개\n\n' +
+      '총 기록: ' + records.length + '건'
+    );
+    location.reload();
+  } catch(e) {
+    alert('합치기 실패: ' + e.message);
+  }
+}
+
+// 분류 합치기 (대분류 > 중분류 > 소분류[])
+function _bkMergeCats(obj){
+  var inc;
+  try { inc = JSON.parse(obj.data['tdbr_v3_categories'] || '{}'); } catch(e) { return 0; }
+  if (!inc || typeof inc !== 'object') return 0;
+
+  var cur = loadCategories() || {};
+  var n = 0;
+  Object.keys(inc).forEach(function(cat){
+    if (!cur[cat]) { cur[cat] = {}; }
+    var mids = inc[cat] || {};
+    Object.keys(mids).forEach(function(mid){
+      if (!cur[cat][mid]) { cur[cat][mid] = []; n++; }
+      (mids[mid] || []).forEach(function(sub){
+        if (cur[cat][mid].indexOf(sub) === -1) { cur[cat][mid].push(sub); n++; }
+      });
+    });
+  });
+  saveCategories(cur);
+  return n;
+}
+
+// 지갑·카드·저축·대출 합치기
+function _bkMergeLists(obj){
+  var n = 0;
+
+  // 내 지갑 (문자열 배열)
+  try {
+    var incPay = JSON.parse(obj.data['tdbr_pay_general'] || '[]');
+    if (Array.isArray(incPay)) {
+      var curPay = loadPayGeneral() || [];
+      incPay.forEach(function(p){ if (curPay.indexOf(p) === -1) { curPay.push(p); n++; } });
+      savePayGeneral(curPay);
+    }
+  } catch(e) {}
+
+  // 카드 설정 (card 이름 기준 중복 제거)
+  try {
+    var incCard = JSON.parse(obj.data['tdbr_card_settings'] || '[]');
+    if (Array.isArray(incCard)) {
+      var curCard = loadCardSettings() || [];
+      incCard.forEach(function(c){
+        if (!c || !c.card) return;
+        var dup = curCard.some(function(x){ return x.card === c.card; });
+        if (!dup) { curCard.push(c); n++; }
+      });
+      saveCardSettings(curCard);
+    }
+  } catch(e) {}
+
+  // 저축·대출 (name + sub 기준 중복 제거)
+  [['tdbr_savings_accounts', loadSavingsAccounts, saveSavingsAccounts],
+   ['tdbr_loans_accounts',   loadLoansAccounts,   saveLoansAccounts]].forEach(function(t){
+    try {
+      var incArr = JSON.parse(obj.data[t[0]] || '[]');
+      if (!Array.isArray(incArr)) return;
+      var curArr = t[1]() || [];
+      incArr.forEach(function(a){
+        if (!a || !a.name) return;
+        var dup = curArr.some(function(x){ return x.name === a.name && x.sub === a.sub; });
+        if (!dup) { curArr.push(a); n++; }
+      });
+      t[2](curArr);
+    } catch(e) {}
+  });
+
+  return n;
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     Firebase 연결 (설정값 붙여넣는 곳)
+     ═══════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ▼▼▼ 여기 6줄만 Firebase 콘솔에서 복사한 값으로 바꾸세요 ▼▼▼ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyA9LIZiy7GCAVIFdPzK0BLiPoziyysfMj0",
+  authDomain:        "gagebu-tb.firebaseapp.com",
+  projectId:         "gagebu-tb",
+  storageBucket:     "gagebu-tb.firebasestorage.app",
+  messagingSenderId: "1042882579814",
+  appId:             "1:1042882579814:web:16bb08ec05b5c417b80ca7"
+};
+/* ▲▲▲ 여기까지 ▲▲▲ */
+
+window.TBDR_FB = { configured: false };
+
+if (String(firebaseConfig.projectId).indexOf('여기에') === -1) {
+  try {
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    let signedIn = null;
+    const ensureAuth = function () {
+      if (!signedIn) signedIn = signInAnonymously(auth);
+      return signedIn;
+    };
+
+    window.TBDR_FB = {
+      configured: true,
+      // 문서 읽기 → 없으면 null
+      load: async function (docId) {
+        await ensureAuth();
+        const snap = await getDoc(doc(db, 'ledgers', docId));
+        return snap.exists() ? snap.data() : null;
+      },
+      // 문서 통째로 쓰기
+      save: async function (docId, payload) {
+        await ensureAuth();
+        await setDoc(doc(db, 'ledgers', docId), payload);
+      }
+    };
+  } catch (e) {
+    window.TBDR_FB = { configured: false, error: e.message };
+  }
+}
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════
+   서버 저장 / 불러오기 (Firebase Firestore)
+   - 데이터는 부부 공유 암호로 암호화해서 올라갑니다
+   - 순서가 뒤바뀌면 덮어쓰기를 자동으로 막습니다
+   ═══════════════════════════════════════════════ */
+
+var SYNC_NAME_KEY = 'tdbr_sync_name';     // 내 이름 (남편/아내)
+var SYNC_PASS_KEY = 'tdbr_sync_pass';     // 부부 공유 암호
+var SYNC_VER_KEY  = 'tdbr_sync_version';  // 내가 마지막으로 맞춘 서버 버전
+var SYNC_INFO_KEY = 'tdbr_sync_info';     // 마지막 동기화 기록 (표시용)
+
+// ── 공유 설정 ──────────────────────────────────
+function syncGetName(){ try { return localStorage.getItem(SYNC_NAME_KEY) || ''; } catch(e){ return ''; } }
+function syncGetPass(){ try { return localStorage.getItem(SYNC_PASS_KEY) || ''; } catch(e){ return ''; } }
+function syncGetVer(){  try { return parseInt(localStorage.getItem(SYNC_VER_KEY) || '0', 10) || 0; } catch(e){ return 0; } }
+function syncSetVer(v){ try { localStorage.setItem(SYNC_VER_KEY, String(v)); } catch(e){} }
+
+function syncGetInfo(){
+  try { return JSON.parse(localStorage.getItem(SYNC_INFO_KEY) || 'null'); } catch(e){ return null; }
+}
+function syncSetInfo(o){
+  try { localStorage.setItem(SYNC_INFO_KEY, JSON.stringify(o)); } catch(e){}
+}
+
+function openSyncSettings(){
+  var name = prompt('이 기기를 쓰는 사람 이름을 입력하세요.\n(상대방이 누가 저장했는지 볼 때 표시됩니다)', syncGetName() || '');
+  if (name === null) return;
+  name = name.trim();
+  if (!name) { alert('이름을 입력해야 합니다.'); return; }
+
+  var cur = syncGetPass();
+  var pass = prompt(
+    '부부 공유 암호를 입력하세요.\n\n' +
+    '· 두 사람이 똑같이 입력해야 데이터를 주고받습니다\n' +
+    '· 이 암호로 데이터를 암호화하므로 서버 관리자도 내용을 볼 수 없습니다\n' +
+    '· 잊어버리면 서버에 올린 데이터를 되살릴 수 없습니다',
+    cur
+  );
+  if (pass === null) return;
+  pass = pass.trim();
+  if (pass.length < 4) { alert('암호는 4자 이상으로 정해주세요.'); return; }
+
+  try {
+    localStorage.setItem(SYNC_NAME_KEY, name);
+    if (pass !== cur) { localStorage.setItem(SYNC_PASS_KEY, pass); syncSetVer(0); }
+    else { localStorage.setItem(SYNC_PASS_KEY, pass); }
+  } catch(e) { alert('설정 저장 실패: ' + e.message); return; }
+
+  alert('✅ 공유 설정 완료\n\n이름: ' + name + '\n암호: ' + pass.replace(/./g, '•') +
+        '\n\n배우자 기기에도 똑같은 암호를 입력하세요.');
+  if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
+  if (typeof renderSettings === 'function') { try { renderSettings(); } catch(e){} }
+}
+
+function syncReady(){
+  if (!window.TBDR_FB || !window.TBDR_FB.configured) {
+    alert('⚠️ Firebase 설정이 아직 안 됐습니다.\n\nindex.html 상단의 firebaseConfig에\nFirebase 콘솔에서 복사한 값을 넣어주세요.');
+    return false;
+  }
+  if (!syncGetName() || !syncGetPass()) {
+    alert('먼저 [공유 설정]에서 이름과 공유 암호를 입력하세요.');
+    openSyncSettings();
+    return false;
+  }
+  return true;
+}
+
+// ── 암호화 (AES-GCM + PBKDF2) ──────────────────
+function _b64(buf){
+  var b = new Uint8Array(buf), s = '';
+  for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function _unb64(str){
+  var s = atob(str), b = new Uint8Array(s.length);
+  for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return b;
+}
+
+// 공유 암호 → 문서 주소 (암호를 모르면 어느 문서인지도 알 수 없음)
+async function _syncDocId(pass){
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('tbdr-ledger:' + pass));
+  var b = new Uint8Array(buf), hex = '';
+  for (var i = 0; i < 16; i++) hex += b[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
+async function _syncKey(pass, salt){
+  var base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:salt, iterations:150000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+
+async function _syncEncrypt(pass, plainText){
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var iv   = crypto.getRandomValues(new Uint8Array(12));
+  var key  = await _syncKey(pass, salt);
+  var ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(plainText));
+  return { salt:_b64(salt), iv:_b64(iv), data:_b64(ct) };
+}
+
+async function _syncDecrypt(pass, box){
+  var key = await _syncKey(pass, _unb64(box.salt));
+  var pt  = await crypto.subtle.decrypt({ name:'AES-GCM', iv:_unb64(box.iv) }, key, _unb64(box.data));
+  return new TextDecoder().decode(pt);
+}
+
+function _syncWhen(iso){
+  try { return new Date(iso).toLocaleString('ko-KR'); } catch(e) { return '알 수 없음'; }
+}
+
+// ── 서버에 저장 (업로드) ───────────────────────
+async function syncUpload(){
+  if (!syncReady()) return;
+  var pass = syncGetPass(), me = syncGetName();
+
+  try {
+    var docId  = await _syncDocId(pass);
+    var remote = await window.TBDR_FB.load(docId);
+
+    // 순서 뒤바뀜 방지: 서버가 내가 아는 것보다 최신이면 막는다
+    if (remote && (remote.version || 0) > syncGetVer()) {
+      var go = confirm(
+        '⚠️ 잠깐!\n\n' +
+        '"' + (remote.updatedBy || '상대방') + '"님이 ' + _syncWhen(remote.updatedAt) + '에\n' +
+        '저장한 내용이 서버에 있습니다. (' + (remote.recordCount || 0) + '건)\n\n' +
+        '지금 저장하면 그 기록이 사라집니다.\n' +
+        '먼저 [서버에서 불러오기]를 해주세요.\n\n' +
+        '────────────────\n' +
+        '[취소] 중단하기 (권장)\n' +
+        '[확인] 그래도 내 것으로 덮어쓰기'
+      );
+      if (!go) return;
+      if (!confirm('정말 덮어쓸까요?\n상대방이 입력한 ' + (remote.recordCount || 0) + '건이 사라집니다.')) return;
+    }
+
+    var plain = JSON.stringify(_bkObject());
+    var box   = await _syncEncrypt(pass, plain);
+    var next  = (remote && remote.version ? remote.version : 0) + 1;
+
+    await window.TBDR_FB.save(docId, {
+      salt: box.salt, iv: box.iv, data: box.data,
+      version: next,
+      updatedBy: me,
+      updatedAt: new Date().toISOString(),
+      recordCount: records.length
+    });
+
+    syncSetVer(next);
+    syncSetInfo({ dir:'up', by:me, at:new Date().toISOString(), count:records.length });
+
+    alert('☁️ 서버에 저장 완료\n\n· 기록 ' + records.length + '건\n· 저장자: ' + me +
+          '\n\n배우자분은 앱에서 [서버에서 불러오기]를 누르면 됩니다.');
+    if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
+  } catch (e) {
+    alert('저장 실패\n\n' + _syncErr(e));
+  }
+}
+
+// ── 서버에서 불러오기 (다운로드) ───────────────
+async function syncDownload(){
+  if (!syncReady()) return;
+  var pass = syncGetPass();
+
+  try {
+    var docId  = await _syncDocId(pass);
+    var remote = await window.TBDR_FB.load(docId);
+
+    if (!remote) {
+      alert('서버에 저장된 데이터가 없습니다.\n\n공유 암호가 배우자와 똑같은지 확인하거나,\n먼저 [서버에 저장]을 해보세요.');
+      return;
+    }
+
+    if ((remote.version || 0) === syncGetVer()) {
+      if (!confirm('이미 최신 상태입니다.\n(' + (remote.updatedBy || '?') + '님이 ' + _syncWhen(remote.updatedAt) + '에 저장)\n\n그래도 다시 불러올까요?')) return;
+    }
+
+    var plain;
+    try {
+      plain = await _syncDecrypt(pass, remote);
+    } catch (e) {
+      alert('❌ 복호화 실패\n\n공유 암호가 배우자와 다릅니다.\n[공유 설정]에서 암호를 확인해주세요.');
+      return;
+    }
+
+    var obj = JSON.parse(plain);
+    var incoming = [];
+    try { incoming = JSON.parse(obj.data['tdbr_v3'] || '[]'); } catch(e) {}
+
+    var ok = confirm(
+      '⬇️ 서버 데이터\n' +
+      '· 저장자: ' + (remote.updatedBy || '?') + '\n' +
+      '· 저장 시각: ' + _syncWhen(remote.updatedAt) + '\n' +
+      '· 기록: ' + incoming.length + '건\n\n' +
+      '현재 내 기록 ' + records.length + '건을 지우고\n이 데이터로 교체합니다. 진행할까요?'
+    );
+    if (!ok) return;
+
+    syncSetVer(remote.version || 0);
+    syncSetInfo({ dir:'down', by:remote.updatedBy || '?', at:remote.updatedAt, count:incoming.length });
+    _bkOverwrite(obj);   // 저장 후 자동 새로고침
+  } catch (e) {
+    alert('불러오기 실패\n\n' + _syncErr(e));
+  }
+}
+
+function _syncErr(e){
+  var m = (e && e.message) ? e.message : String(e);
+  if (m.indexOf('permission') !== -1 || m.indexOf('PERMISSION') !== -1)
+    return '접근이 거부됐습니다.\nFirebase 보안 규칙과 익명 로그인 설정을 확인하세요.';
+  if (m.indexOf('auth/') !== -1 || m.indexOf('unauthorized-domain') !== -1)
+    return '인증 실패.\nFirebase Authentication → 승인된 도메인에\nshookup21-lang.github.io 를 추가했는지 확인하세요.';
+  if (m.indexOf('offline') !== -1 || m.indexOf('network') !== -1 || m.indexOf('Failed to fetch') !== -1)
+    return '인터넷 연결을 확인해주세요.';
+  return m;
+}
+
+// 설정 화면에 표시할 현재 상태 문구
+function syncStatusText(){
+  if (!window.TBDR_FB || !window.TBDR_FB.configured) return 'Firebase 설정 필요';
+  if (!syncGetName() || !syncGetPass()) return '공유 설정을 먼저 해주세요';
+  var i = syncGetInfo();
+  if (!i) return syncGetName() + ' · 아직 주고받은 적 없음';
+  return syncGetName() + ' · 마지막 ' + (i.dir === 'up' ? '저장' : '불러오기') +
+         ' ' + _syncWhen(i.at) + ' (' + i.count + '건)';
+}
+</script>
+
+<script>
 // PWA 서비스워커 등록 (오프라인 지원 + 온라인 시 최신 화면 자동 반영)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('service-worker.js')
-      .then(function (r) { console.log('SW OK:', r.scope); })
-      .catch(function (e) { console.error('SW FAIL:', e); });
+    navigator.serviceWorker.register('service-worker.js').catch(function () {});
   });
 }
 </script>

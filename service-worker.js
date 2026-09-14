@@ -1,8 +1,8 @@
-// TBDR 가계부 PWA 서비스워커 (v2)
+// TBDR 가계부 PWA 서비스워커 (v3)
 // 전략: 네트워크 우선(온라인이면 항상 최신 화면) + 실패 시 캐시(오프라인 대비)
 // → GitHub의 index.html만 교체하면, 온라인에서 다음 실행 때 자동으로 최신 화면이 반영됩니다.
 
-const CACHE = 'tbdr-cache-v2';
+const CACHE = 'tbdr-cache-v3';
 const PRECACHE = [
   './index.html',
   './manifest.json',
