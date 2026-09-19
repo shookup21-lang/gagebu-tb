@@ -523,7 +523,7 @@ body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-14_20:16';
+const APP_BUILD = '2026-09-19_16:15';
 
 // 한국 시간(KST=UTC+9) 기준 yyyymmdd_HHMM 문자열 반환
 // 폰의 timezone 설정과 무관하게 항상 한국 시간으로 동작
@@ -615,8 +615,9 @@ const CATEGORIES = {"수입": {}, "이체대체": {}, "지출": {}, "저축": {}
 const INCOME_SUBS = [];
 const EXPENSE_GROUPS = [];
 
-const today = new Date();
-const todayStr = toDateStr(today);
+// let: 앱이 백그라운드에 며칠씩 살아 있어도 refreshTodayIfChanged()가 갱신한다
+let today = new Date();
+let todayStr = toDateStr(today);
 // 상태 변수
 let currentYear = today.getFullYear();
 let currentMonth = today.getMonth();
@@ -684,6 +685,22 @@ try{const s=localStorage.getItem(STORAGE_KEY);records=s?JSON.parse(s):JSON.parse
     if(!localStorage.getItem('tdbr_card_settings'))localStorage.setItem('tdbr_card_settings',JSON.stringify(_INIT_CARDS));
   }catch{}
 })()
+// 이 기기에서 데이터가 바뀌었음을 표시 (서버 불러오기 전 경고에 사용, 기기별 키)
+const SYNC_DIRTY_KEY = 'tdbr_sync_dirty';
+function markLocalDirty(){ try { localStorage.setItem(SYNC_DIRTY_KEY, String(Date.now())); } catch(e){} }
+
+// 설정류 저장 공통 함수: 용량 초과 시 예외를 삼키지 않고 경고 후 false 반환
+function _lsSet(key, value){
+  try {
+    localStorage.setItem(key, value);
+    markLocalDirty();
+    return true;
+  } catch(e) {
+    alert('⚠️ 설정 저장 실패\n\n저장 공간이 부족할 수 있습니다.\n[설정 → 백업과 내보내기]에서 백업한 뒤 정리해 주세요.\n\n(' + e.message + ')');
+    return false;
+  }
+}
+
 function save() {
   try {
     const json = JSON.stringify(records);
@@ -693,8 +710,16 @@ function save() {
     if (verify === null || verify.length !== json.length) {
       throw new Error('저장 검증 실패');
     }
+    markLocalDirty();
     return true;
   } catch (e) {
+    // 메모리(records)를 실제로 저장돼 있는 상태로 되돌린다.
+    // 화면에는 보이는데 저장은 안 된 '유령 기록'을 막기 위함.
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      if (Array.isArray(parsed)) records = parsed;
+    } catch (e2) {}
     // 저장 실패 - 사용자에게 즉시 경고
     const sizeMB = ((JSON.stringify(records).length) / 1024 / 1024).toFixed(2);
     alert(
@@ -702,9 +727,9 @@ function save() {
       '데이터가 저장되지 않았습니다.\n' +
       '현재 데이터 크기: 약 ' + sizeMB + ' MB\n' +
       '(이 기기의 저장 한계를 초과한 것으로 보입니다)\n\n' +
-      '⚠️ 앱을 닫으면 새로 추가/가져온 데이터가 사라집니다!\n\n' +
-      '✅ 즉시 [설정 → CSV 내보내기]로 백업하세요.\n' +
-      '그 다음 일부 데이터를 삭제하거나 분할 저장하세요.'
+      '방금 한 변경은 반영되지 않았습니다.\n\n' +
+      '✅ [설정 → 백업과 내보내기]로 백업한 뒤\n' +
+      '오래된 기록을 정리해 주세요.'
     );
     return false;
   }
@@ -873,19 +898,19 @@ function loadCategories() {
 function getMids(cat){ const cats=loadCategories(); return cats[cat]?Object.keys(cats[cat]): []; }
 // 소분류 목록 반환
 function getSubs(cat,mid){ const cats=loadCategories(); return (cats[cat]&&cats[cat][mid])?cats[cat][mid]: []; }
-function saveCategories(cats) { localStorage.setItem(CATEGORIES_KEY,JSON.stringify(cats)); }
+function saveCategories(cats) { return _lsSet(CATEGORIES_KEY,JSON.stringify(cats)); }
 function loadDefaultCategories() { try { const s=localStorage.getItem(DEFAULT_CATEGORIES_KEY); return s?JSON.parse(s):null; } catch { return null; } }
-function saveDefaultCategories(cats) { localStorage.setItem(DEFAULT_CATEGORIES_KEY,JSON.stringify(cats)); }
+function saveDefaultCategories(cats) { return _lsSet(DEFAULT_CATEGORIES_KEY,JSON.stringify(cats)); }
 function loadCardSettings() { try { return JSON.parse(localStorage.getItem(CARD_STORAGE))||[]; } catch { return []; } }
-function saveCardSettings(arr) { localStorage.setItem(CARD_STORAGE,JSON.stringify(arr)); }
+function saveCardSettings(arr) { return _lsSet(CARD_STORAGE,JSON.stringify(arr)); }
 function loadPayGeneral() { try { const s=localStorage.getItem(PAY_GENERAL_KEY); return s?JSON.parse(s):[...PAY_GENERAL]; } catch { return [...PAY_GENERAL]; } }
-function savePayGeneral(list) { localStorage.setItem(PAY_GENERAL_KEY,JSON.stringify(list)); }
+function savePayGeneral(list) { return _lsSet(PAY_GENERAL_KEY,JSON.stringify(list)); }
 // 저축: [{name, sub, start}]  sub=거래 소분류와 매칭
 function loadSavingsAccounts() { try { return JSON.parse(localStorage.getItem(SAVINGS_KEY))||[]; } catch { return []; } }
-function saveSavingsAccounts(arr) { localStorage.setItem(SAVINGS_KEY,JSON.stringify(arr)); }
+function saveSavingsAccounts(arr) { return _lsSet(SAVINGS_KEY,JSON.stringify(arr)); }
 // 대출: [{name, sub, start}]  sub=원금상환 거래의 소분류
 function loadLoansAccounts() { try { return JSON.parse(localStorage.getItem(LOANS_KEY))||[]; } catch { return []; } }
-function saveLoansAccounts(arr) { localStorage.setItem(LOANS_KEY,JSON.stringify(arr)); }
+function saveLoansAccounts(arr) { return _lsSet(LOANS_KEY,JSON.stringify(arr)); }
 // HTML 이스케이프 (저축/대출 이름 등 사용자 입력값 안전 표시)
 function escapeHTML(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -1259,13 +1284,13 @@ function recordRowHTML(r, compact){
   const aF = compact ? 12.5 : 15;  // 금액 글자 크기
   const sF = compact ? 10 : 11;    // 할인/지갑 글자 크기
   return '<div class="record-row'+(compact?' compact':'')+'" style="background:'+getCatBgColor(r.cat)+'" onclick="openDetail('+r.id+')">'
-    +'<div class="record-row-left"><div class="record-row-date" style="font-size:'+dF+'px;font-weight:600">'+'<span style="color:'+getYearColor(r.date.slice(0,4))+'">'+r.date.slice(0,4)+'</span><span style="color:var(--text-sub)">'+r.date.slice(4)+' · <span style="color:'+(r.type==='신용'?'var(--yellow)':'var(--purple)')+'">'+r.type+'</span></div>'
+    +'<div class="record-row-left"><div class="record-row-date" style="font-size:'+dF+'px;font-weight:600">'+'<span style="color:'+getYearColor(r.date.slice(0,4))+'">'+r.date.slice(0,4)+'</span><span style="color:var(--text-sub)">'+r.date.slice(4)+' · <span style="color:'+(r.type==='신용'?'var(--yellow)':'var(--purple)')+'">'+escapeHTML(r.type)+'</span></div>'
     +'<div class="record-row-place">'+escapeHTML(r.place)+'</div><div class="record-row-cat">'+escapeHTML(r.cat)+' · '+escapeHTML(r.mid)+' · '+escapeHTML(r.sub)+'</div></div>'
     +'<div class="record-row-right">'
     +(incS?'<div style="font-size:'+aF+'px;font-weight:700;color:'+incS.color+'">'+incS.sign+incS.abs+'</div>':'')
     +(expS?'<div style="font-size:'+aF+'px;font-weight:700;color:'+expS.color+'">'+expS.sign+expS.abs+'</div>':'')
     +(r.discount?'<div style="font-size:'+sF+'px;color:var(--text-muted)">할인 '+fmtK(r.discount)+'</div>':'')
-    +'<div style="font-size:'+sF+'px;color:var(--text-muted)">'+(r.pay||'')+'</div></div></div>';
+    +'<div style="font-size:'+sF+'px;color:var(--text-muted)">'+escapeHTML(r.pay||'')+'</div></div></div>';
 }
 // 패널
 function renderPanel(dateStr){
@@ -1308,7 +1333,7 @@ function renderPanel(dateStr){
       h+='<div class="panel-checkbox '+(isChecked?'checked':'')+'"></div>';
     }
     h+='<div class="item-left">'
-      +'<div style="font-size:11px;font-weight:600"><span style="color:'+(r.type==='신용'?'var(--yellow)':'var(--purple)')+'">'+r.type+'</span></div>'
+      +'<div style="font-size:11px;font-weight:600"><span style="color:'+(r.type==='신용'?'var(--yellow)':'var(--purple)')+'">'+escapeHTML(r.type)+'</span></div>'
       +'<div class="item-place">'+escapeHTML(r.place)+'</div>'
       +'<div class="item-content">'+escapeHTML(r.content||'')+'</div>'
       +'<div style="font-size:10px;color:var(--text-muted);margin-top:1px">'+escapeHTML(r.cat)+' · '+escapeHTML(r.mid)+' · '+escapeHTML(r.sub)+'</div>'
@@ -1317,7 +1342,7 @@ function renderPanel(dateStr){
       +(r.income?(function(){const s=fmtSignedAmount(r.income,true);return '<div style="font-size:15px;font-weight:700;color:'+s.color+'">'+s.sign+s.abs+'</div>';})():'')
       +(r.expense?(function(){const s=fmtSignedAmount(r.expense,false);return '<div style="font-size:15px;font-weight:700;color:'+s.color+'">'+s.sign+s.abs+'</div>';})():'')
       +(r.discount?'<div class="item-discount">할인 '+fmtK(r.discount)+'</div>':'')
-      +'<div style="font-size:11px;color:var(--text-muted)">'+(r.pay||'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text-muted)">'+escapeHTML(r.pay||'')+'</div>'
       +'</div></div>';
   });
   // 선택 모드일 때 하단 액션 바
@@ -1456,7 +1481,7 @@ function copySelectedPanel(){
     copy.date = newDate;
     records.push(copy);
   });
-  save();
+  if(!save()) return;
   alert('✅ '+srcRecs.length+'건이 '+newDate+'로 복제되었습니다.');
   // 선택 모드 종료 + 새 날짜로 패널 열기 (결과 즉시 확인)
   panelSelectMode = false;
@@ -1471,7 +1496,7 @@ function deleteSelectedPanel(){
   const count = panelSelectedIds.size;
   if(!confirm('선택된 거래 '+count+'건을 삭제합니다.\n\n복구할 수 없습니다. 계속할까요?')) return;
   records = records.filter(r => !panelSelectedIds.has(r.id));
-  save();
+  if(!save()) return;
   alert('✅ '+count+'건이 삭제되었습니다.');
   // 선택 모드 종료 + 현재 날짜 패널 갱신
   panelSelectMode = false;
@@ -1484,8 +1509,9 @@ function deleteSelectedPanel(){
 function confirmDelete(){document.getElementById('delete-modal').style.display='flex';}
 function doDelete(){
   records=records.filter(r=>r.id!==selectedRecord.id);
-  save();
+  const ok=save();
   document.getElementById('delete-modal').style.display='none';
+  if(!ok) return;   // 저장 실패: 기록은 그대로 남아 있음 (save가 되돌림)
   selectedRecord=null;
   if(detailFrom === 'search'){
     // 검색에서 진입한 경우: 검색 페이지로 돌아가서 결과 갱신
@@ -1600,11 +1626,14 @@ function saveForm(){
   if(!income&&!expense) return alert('수입 또는 지출 금액을 입력하세요.');
   if(editingId){
     const idx=records.findIndex(r=>r.id===editingId);
-    if(idx>=0) records[idx]={id:editingId,date,type,cat,mid,sub,place,content,income,expense,pay,note,discount,discountPct,memo};
-    selectedRecord=records[idx]; save(); renderMain(); openDetail(editingId);
+    if(idx<0){ alert('수정할 기록을 찾을 수 없습니다.\n다른 기기에서 불러오기로 바뀌었을 수 있습니다.'); return; }
+    records[idx]={id:editingId,date,type,cat,mid,sub,place,content,income,expense,pay,note,discount,discountPct,memo};
+    if(!save()) return;   // 실패하면 입력 화면을 그대로 둔다 (입력 내용 보존)
+    selectedRecord=records.find(r=>r.id===editingId); renderMain(); openDetail(editingId);
   } else {
     records.push({id:Date.now(),date,type,cat,mid,sub,place,content,income,expense,pay,note,discount,discountPct,memo});
-    save(); selectedDate=date; showPage('main-page'); renderMain();
+    if(!save()) return;   // 실패하면 입력 화면을 그대로 둔다 (입력 내용 보존)
+    selectedDate=date; showPage('main-page'); renderMain();
     if(selectedDate) renderPanel(selectedDate);
   }
 }
@@ -2083,7 +2112,7 @@ function saveSubModal(){
       if(summary && !confirm("'"+orig+"' → '"+name+"' 변경 시\n"+summary+"의 소분류가 함께 변경됩니다.\n계속할까요?"))return;
       // records 동기화
       records.forEach(function(r){if(r.cat===cat&&r.mid===mid&&r.sub===orig)r.sub=name;});
-      save();
+      if(!save()) return;
       // 저축 목록 sub 동기화
       if(cat==='저축'){
         const arr=loadSavingsAccounts();
@@ -2497,7 +2526,7 @@ function openSavingsModal(idx){
   document.getElementById('sl-name').value = data.name || '';
   document.getElementById('sl-sub').value = data.sub || '';
   document.getElementById('sl-start').value = data.start || '';
-  document.getElementById('sl-start-label').textContent = '시작 잔액 (현재까지 모인 금액, 모르면 0)';
+  document.getElementById('sl-start-label').textContent = '시작 잔액 (앱에 기록하기 전부터 있던 금액, 없으면 0)';
   
   // 소분류 표시 갱신
   const subDisp = document.getElementById('sl-sub-display');
@@ -3126,6 +3155,13 @@ function saveCardSetting(){
   if(!isDebit){
     if(!startDay||startDay<1||startDay>31){alert('집계 시작일을 1~31 사이로 입력하세요.');return;}
     if(endDay===null||isNaN(endDay)){alert('집계 마감일을 입력하세요. 말일이면 0.');return;}
+    // 이용기간은 '전월 시작일 ~ 당월 마감일'이고 결제는 '당월 결제일'이다.
+    // 결제일이 마감일보다 빠르면, 결제일 뒤에 쓴 금액이 이미 결제된 것으로 계산된다.
+    if(endDay>0 && payDay<=endDay){
+      if(!confirm('⚠️ 결제일('+payDay+'일)이 집계 마감일('+endDay+'일)보다 빠르거나 같습니다.\n\n'
+        +'이대로면 결제일 이후에 쓴 금액이 같은 달 결제일에\n이미 빠져나간 것으로 계산됩니다.\n\n'
+        +'카드사 안내의 이용기간을 다시 확인해 주세요.\n그래도 저장할까요?')) return;
+    }
   }
   if(isDebit && !account){alert('체크/직불카드는 연결 계좌가 필요합니다.\n연결 계좌를 선택하세요.');return;}
   const settings=loadCardSettings();
@@ -3139,7 +3175,7 @@ function saveCardSetting(){
       if(cnt>0){
         if(!confirm("카드명 변경 시 기존 신용기록 "+cnt+"건도 함께 변경됩니다.\n계속할까요?"))return;
         records.forEach(function(r){if(r.type==='신용'&&r.pay===oldCard)r.pay=card;});
-        save();
+        if(!save()) return;
       }
     }
     settings[editIdx]=newSetting;
@@ -3202,12 +3238,12 @@ function savePayMethod(editIdx){
         + "\n계속할까요?";
       if((cnt>0||cardCnt>0)&&!confirm(confirmMsg))return;
       records.forEach(function(r){if(r.type==='일반'&&r.pay===old)r.pay=val;});
-      // 카드의 연결 계좌도 같이 변경
+      // 기록을 먼저 저장하고, 성공했을 때만 카드 연결 계좌를 바꾼다
+      if(!save()) return;
       if(cardCnt>0){
         cardSettings.forEach(function(c){if(c.account===old)c.account=val;});
         saveCardSettings(cardSettings);
       }
-      save();
     }
   } else {
     if(list.includes(val)){alert('이미 존재하는 항목입니다.');return;}
@@ -3837,7 +3873,30 @@ function getCardBillForMonth(year,month){
 // 카드 수정 시 이름 변경 - saveCardSetting 덮어쓰기
 const _origSaveCardSetting = typeof saveCardSetting === 'function' ? saveCardSetting : null;
 
+// 자정이 지난 뒤 앱으로 돌아오면 '오늘'을 갱신한다.
+// (안드로이드는 PWA를 백그라운드에 며칠씩 살려 둔다 → + 버튼이 어제 날짜로 채워지던 문제)
+function refreshTodayIfChanged(){
+  const now=new Date();
+  const s=toDateStr(now);
+  if(s===todayStr) return false;
+  const oldY=today.getFullYear(), oldM=today.getMonth();
+  today=now; todayStr=s;
+  // 옛 '오늘'의 달을 보고 있었다면 새 오늘의 달로 따라간다
+  if(currentYear===oldY && currentMonth===oldM){
+    currentYear=now.getFullYear(); currentMonth=now.getMonth();
+  }
+  const mp=document.getElementById('main-page');
+  if(mp && mp.classList.contains('active')) renderMain();
+  return true;
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='visible'){ try{ refreshTodayIfChanged(); }catch(e){} }
+});
+// 화면을 켜 둔 채 자정을 넘기는 경우 대비 (1분마다 확인, 비용 거의 없음)
+setInterval(function(){ try{ refreshTodayIfChanged(); }catch(e){} }, 60000);
+
 function goToToday(){
+  refreshTodayIfChanged();
   const now=new Date();
   currentYear=now.getFullYear();
   currentMonth=now.getMonth();
@@ -3852,7 +3911,7 @@ function goToToday(){
 function deleteRecord(id){
   if(!confirm('이 기록을 삭제할까요?')) return;
   records = records.filter(function(r){ return r.id !== id; });
-  save();
+  if(!save()) return;
   renderMain();
   // 삭제된 날짜의 패널이 열려있으면 갱신
   if(selectedDate) renderPanel(selectedDate);
@@ -3898,7 +3957,7 @@ function saveMidModal(){
     Object.keys(cats[cat]).forEach(function(k){if(k===orig)newMids[name]=subs;else newMids[k]=cats[cat][k];});
     cats[cat]=newMids;
     records.forEach(function(r){if(r.cat===cat&&r.mid===orig)r.mid=name;});
-    save();
+    if(!save()) return;
     if(expandedCats.has(cat+'__'+orig)){expandedCats.delete(cat+'__'+orig);expandedCats.add(cat+'__'+name);}
     lastEditedCat = {kind:'mid', cat:cat, mid:name};
   } else if(!orig){
@@ -4247,17 +4306,23 @@ function handleCSVImportContent(text){
   const iDiscountPct=header.indexOf('할인%');
   const iMemo=header.indexOf('메모');
 
-  if(iDate<0||iCat<0){alert('올바른 형식의 CSV가 아닙니다.\n날짜, 대분류 컬럼이 필요합니다.');return;}
+  if(iDate<0||iCat<0){
+    // 엑셀에서 저장하면 한글이 CP949로 바뀌어 머리글이 깨지는 경우가 많다
+    const garbled = text.indexOf('\uFFFD')!==-1;
+    alert('올바른 형식의 CSV가 아닙니다.\n날짜, 대분류 컬럼이 필요합니다.'
+      + (garbled ? '\n\n한글이 깨져 보입니다. 엑셀에서 편집했다면\n[다른 이름으로 저장 → CSV UTF-8(쉼표로 분리)]로\n다시 저장해 주세요.' : ''));
+    return;
+  }
 
-  const imported=[];let skipCount=0;
+  const imported=[];let skipCount=0;let skipDate=0,skipAmount=0;
   let maxId=records.reduce((m,r)=>Math.max(m,r.id||0),0);
 
   rows.slice(1).forEach(function(cols){
     const date=(cols[iDate]||'').trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){skipCount++;return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){skipCount++;skipDate++;return;}
     const income=parseAmount(cols[iIncome])||null;
     const expense=parseAmount(cols[iExpense])||null;
-    if(!income&&!expense){skipCount++;return;}
+    if(!income&&!expense){skipCount++;skipAmount++;return;}
     imported.push({
       id:++maxId,
       date,
@@ -4277,7 +4342,11 @@ function handleCSVImportContent(text){
     });
   });
 
-  if(!imported.length){alert('불러올 수 있는 데이터가 없습니다.\n(건너뜀: '+skipCount+'건)');return;}
+  const skipWhy = (skipDate?'\n· 날짜 형식이 YYYY-MM-DD가 아님: '+skipDate+'건':'')
+               + (skipAmount?'\n· 수입·지출 금액이 없거나 숫자가 아님: '+skipAmount+'건':'')
+               + (skipDate?'\n\n(엑셀이 날짜를 2026/9/14 같은 형식으로 바꿨을 수 있습니다)':'');
+  if(!imported.length){alert('불러올 수 있는 데이터가 없습니다.\n(건너뜀: '+skipCount+'건)'+skipWhy);return;}
+  if(skipCount>0) window._pendingImportSkipWhy = skipWhy; else window._pendingImportSkipWhy = '';
   window._pendingImport=imported;
   showImportConfirm(imported,skipCount);
 }
@@ -4289,6 +4358,7 @@ function showImportConfirm(imported, skipCount){
   overlay.innerHTML='<div style="background:var(--surface);border-radius:20px 20px 0 0;padding:24px 24px 40px;width:100%;max-width:430px;border-top:1px solid var(--border);overflow-y:auto;max-height:80vh">'
     +'<div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px">CSV 불러오기</div>'
     +'<div style="font-size:14px;color:var(--text-sub);margin-bottom:4px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><polyline points="20 6 9 17 4 12"/></svg> '+imported.length+'건 불러올 수 있습니다'+(skipCount>0?' ('+skipCount+'건 제외)':'')+'</div>'
+    +(skipCount>0&&window._pendingImportSkipWhy?'<div style="font-size:12px;color:var(--text-muted);margin:6px 0 4px;line-height:1.5">제외된 이유'+escapeHTML(window._pendingImportSkipWhy).replace(/\n/g,'<br>')+'</div>':'')
     +'<div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">기존 데이터에 추가하거나 교체할 수 있습니다</div>'
     +'<div style="display:flex;flex-direction:column;gap:12px">'
     +'<button onclick="doImportAdd()" style="padding:16px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;width:100%">기존에 추가</button>'
@@ -4879,24 +4949,45 @@ function _bkRead(file){
       '백업 파일(' + incoming.length + '건)로 완전히 교체합니다.\n\n' +
       '되돌릴 수 없습니다. 진행할까요?'
     )) {
-      _bkOverwrite(obj);
+      // 파일 복구는 '이 기기의 변경'이므로 서버와 다름 표시를 남긴다
+      _bkOverwrite(obj, { doneMsg:'✅ 복구 완료\n\n앱을 다시 불러옵니다.', after:function(){ markLocalDirty(); } });
     }
   };
   fr.readAsText(file, 'utf-8');
 }
 
-// 덮어쓰기 (백업 복구용)
-function _bkOverwrite(obj){
+// 덮어쓰기 (백업 복구 · 서버 불러오기 공용)
+// 9개 키를 한꺼번에 교체한다. 중간에 실패하면 원래 값으로 되돌려
+// '기록은 새것, 분류는 옛것' 같은 반쯤 섞인 상태를 남기지 않는다.
+// opts.after  : 교체가 전부 성공한 뒤에만 실행 (동기화 버전 기록 등)
+// opts.doneMsg: 완료 안내 문구
+// 반환값: 성공 true / 실패 false (성공 시 새로고침)
+function _bkOverwrite(obj, opts){
+  opts = opts || {};
+  var snap = {};
+  BACKUP_KEYS.forEach(function(k){
+    try { snap[k] = localStorage.getItem(k); } catch(e) { snap[k] = null; }
+  });
   try {
     BACKUP_KEYS.forEach(function(k){
       if (typeof obj.data[k] === 'string') localStorage.setItem(k, obj.data[k]);
       else localStorage.removeItem(k);
     });
-    alert('✅ 복구 완료\n\n앱을 다시 불러옵니다.');
-    location.reload();
   } catch(e) {
-    alert('복구 실패: ' + e.message + '\n\n저장 공간이 부족할 수 있습니다.');
+    // 되돌리기
+    BACKUP_KEYS.forEach(function(k){
+      try {
+        if (snap[k] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, snap[k]);
+      } catch(e2) {}
+    });
+    alert('교체 실패: ' + e.message + '\n\n저장 공간이 부족할 수 있습니다.\n기존 데이터는 그대로 두었습니다.');
+    return false;
   }
+  if (typeof opts.after === 'function') { try { opts.after(); } catch(e) {} }
+  alert(opts.doneMsg || '✅ 복구 완료\n\n앱을 다시 불러옵니다.');
+  location.reload();
+  return true;
 }
 
 // 합치기 (가족 공유용)
@@ -5125,7 +5216,11 @@ function openSyncSettings(){
   );
   if (pass === null) return;
   pass = pass.trim();
-  if (pass.length < 4) { alert('암호는 4자 이상으로 정해주세요.'); return; }
+  // 기존 암호를 그대로 쓰는 경우는 허용하고, 새로 정하거나 바꿀 때만 8자 이상을 요구한다
+  if (pass !== cur && pass.length < 8) {
+    alert('암호는 8자 이상으로 정해주세요.\n\n전화번호·생일처럼 짐작하기 쉬운 값은 피해주세요.');
+    return;
+  }
 
   try {
     localStorage.setItem(SYNC_NAME_KEY, name);
@@ -5134,7 +5229,8 @@ function openSyncSettings(){
   } catch(e) { alert('설정 저장 실패: ' + e.message); return; }
 
   alert('✅ 공유 설정 완료\n\n이름: ' + name + '\n암호: ' + pass.replace(/./g, '•') +
-        '\n\n배우자 기기에도 똑같은 암호를 입력하세요.');
+        '\n\n배우자 기기에도 똑같은 암호를 입력하세요.' +
+        (pass !== cur && cur ? '\n\n※ 암호를 바꾸면 서버의 저장 위치도 바뀝니다.\n주로 입력하는 기기에서 먼저 [서버에 저장]을 해주세요.' : ''));
   if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
   if (typeof renderSettings === 'function') { try { renderSettings(); } catch(e){} }
 }
@@ -5191,19 +5287,96 @@ async function _syncKey(pass, salt){
   );
 }
 
+// ── 압축 (gzip) ────────────────────────────────
+// Firestore 문서 한 개는 최대 1MiB. 압축 없이는 기록 약 2,600건에서 막힌다.
+// 암호화 '전에' 압축해야 효과가 있다 (암호문은 압축되지 않음).
+function _syncCanZip(){
+  return typeof CompressionStream === 'function' &&
+         typeof DecompressionStream === 'function' &&
+         typeof Response === 'function';
+}
+async function _syncZip(bytes, decompress){
+  var s = decompress ? new DecompressionStream('gzip') : new CompressionStream('gzip');
+  var w = s.writable.getWriter();
+  w.write(bytes).catch(function(){});
+  w.close().catch(function(){});
+  return new Uint8Array(await new Response(s.readable).arrayBuffer());
+}
+
+// 반환: { salt, iv, data, z? }  z:'gzip'이면 압축된 데이터
 async function _syncEncrypt(pass, plainText){
+  var bytes = new TextEncoder().encode(plainText);
+  var zipped = false;
+  if (_syncCanZip()) {
+    try { bytes = await _syncZip(bytes, false); zipped = true; }
+    catch(e) { bytes = new TextEncoder().encode(plainText); zipped = false; }
+  }
   var salt = crypto.getRandomValues(new Uint8Array(16));
   var iv   = crypto.getRandomValues(new Uint8Array(12));
   var key  = await _syncKey(pass, salt);
-  var ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, new TextEncoder().encode(plainText));
-  return { salt:_b64(salt), iv:_b64(iv), data:_b64(ct) };
+  var ct   = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, bytes);
+  var box  = { salt:_b64(salt), iv:_b64(iv), data:_b64(ct) };
+  if (zipped) box.z = 'gzip';   // undefined 필드는 Firestore가 거부하므로 있을 때만 넣는다
+  return box;
 }
 
-async function _syncDecrypt(pass, box){
+// 1단계: 복호화만 (실패 = 암호가 다름)
+async function _syncDecryptRaw(pass, box){
   var key = await _syncKey(pass, _unb64(box.salt));
-  var pt  = await crypto.subtle.decrypt({ name:'AES-GCM', iv:_unb64(box.iv) }, key, _unb64(box.data));
-  return new TextDecoder().decode(pt);
+  return new Uint8Array(await crypto.subtle.decrypt({ name:'AES-GCM', iv:_unb64(box.iv) }, key, _unb64(box.data)));
 }
+// 2단계: 압축 해제 + 글자로 (실패 = 브라우저/데이터 문제)
+async function _syncUnpack(box, bytes){
+  if (box.z === 'gzip') {
+    if (!_syncCanZip()) throw new Error('이 브라우저는 압축 해제를 지원하지 않습니다. 크롬을 최신 버전으로 업데이트해 주세요.');
+    bytes = await _syncZip(bytes, true);
+  }
+  return new TextDecoder().decode(bytes);
+}
+// 기존 호출부 호환용
+async function _syncDecrypt(pass, box){
+  return _syncUnpack(box, await _syncDecryptRaw(pass, box));
+}
+
+// 서버 문서 → 기록 배열 (복호화·해제·파싱). 실패 시 {error:'pass'|'unpack'|'parse', message}
+async function _syncReadRemote(pass, remote){
+  var raw;
+  try { raw = await _syncDecryptRaw(pass, remote); }
+  catch(e) { return { error:'pass' }; }
+  var plain;
+  try { plain = await _syncUnpack(remote, raw); }
+  catch(e) { return { error:'unpack', message:e.message }; }
+  var obj;
+  try { obj = JSON.parse(plain); } catch(e) { return { error:'parse', message:e.message }; }
+  if (!obj || !obj.data) return { error:'parse', message:'백업 형식이 아닙니다' };
+  var recs = [];
+  try { recs = JSON.parse(obj.data['tdbr_v3'] || '[]'); } catch(e) {}
+  if (!Array.isArray(recs)) recs = [];
+  return { obj:obj, records:recs };
+}
+
+// ── 경고 문구용 도우미 ─────────────────────────
+function _syncRecLine(r){
+  var amt = r.expense ? r.expense : (r.income || 0);
+  var d = String(r.date || '').slice(5);
+  return '· ' + d + ' ' + (r.place || '(소제목 없음)') + ' ' + Number(amt).toLocaleString('ko-KR') + '원';
+}
+function _syncRecList(list, max){
+  max = max || 5;
+  var lines = list.slice(0, max).map(_syncRecLine);
+  if (list.length > max) lines.push('  …외 ' + (list.length - max) + '건');
+  return lines.join('\n');
+}
+// 이 기기의 마지막 동기화 시각(ms). 예전 형식이면 서버 저장 시각으로 대신한다.
+function _syncLastLocalMs(){
+  var i = syncGetInfo();
+  if (!i) return 0;
+  if (i.localAt) return i.localAt;
+  var t = Date.parse(i.at);
+  return isNaN(t) ? 0 : t;
+}
+function syncIsDirty(){ try { return !!localStorage.getItem(SYNC_DIRTY_KEY); } catch(e){ return false; } }
+function syncClearDirty(){ try { localStorage.removeItem(SYNC_DIRTY_KEY); } catch(e){} }
 
 function _syncWhen(iso){
   try { return new Date(iso).toLocaleString('ko-KR'); } catch(e) { return '알 수 없음'; }
@@ -5220,36 +5393,69 @@ async function syncUpload(){
 
     // 순서 뒤바뀜 방지: 서버가 내가 아는 것보다 최신이면 막는다
     if (remote && (remote.version || 0) > syncGetVer()) {
+      // 서버 내용을 풀어서 '덮어쓰면 사라질 기록'을 실제로 센다
+      var srvCount = remote.recordCount || 0;
+      var lost = null;
+      var rr = await _syncReadRemote(pass, remote);
+      if (!rr.error) {
+        srvCount = rr.records.length;
+        var mine = {};
+        records.forEach(function(r){ mine[String(r.id)] = 1; });
+        lost = rr.records.filter(function(r){ return r && !mine[String(r.id)]; });
+      }
+      var lossText = lost
+        ? (lost.length > 0
+            ? '덮어쓰면 서버에만 있는 기록 ' + lost.length + '건이 사라집니다:\n' + _syncRecList(lost) + '\n\n'
+            : '서버에만 있는 기록은 없습니다. (수정·삭제 내용은 바뀔 수 있음)\n\n')
+        : '';
       var go = confirm(
         '⚠️ 잠깐!\n\n' +
         '"' + (remote.updatedBy || '상대방') + '"님이 ' + _syncWhen(remote.updatedAt) + '에\n' +
-        '저장한 내용이 서버에 있습니다. (' + (remote.recordCount || 0) + '건)\n\n' +
-        '지금 저장하면 그 기록이 사라집니다.\n' +
+        '저장한 내용이 서버에 있습니다.\n\n' +
+        '· 서버: ' + srvCount + '건\n' +
+        '· 내 기기: ' + records.length + '건\n\n' +
+        lossText +
         '먼저 [서버에서 불러오기]를 해주세요.\n\n' +
         '────────────────\n' +
         '[취소] 중단하기 (권장)\n' +
         '[확인] 그래도 내 것으로 덮어쓰기'
       );
       if (!go) return;
-      if (!confirm('정말 덮어쓸까요?\n상대방이 입력한 ' + (remote.recordCount || 0) + '건이 사라집니다.')) return;
+      var n = lost ? lost.length : Math.max(0, srvCount - records.length);
+      if (!confirm('정말 덮어쓸까요?\n\n' +
+          '서버 ' + srvCount + '건 → 내 기기 ' + records.length + '건으로 바뀝니다.' +
+          (n > 0 ? '\n서버에만 있는 ' + n + '건은 되살릴 수 없습니다.' : ''))) return;
     }
 
     var plain = JSON.stringify(_bkObject());
     var box   = await _syncEncrypt(pass, plain);
     var next  = (remote && remote.version ? remote.version : 0) + 1;
 
-    await window.TBDR_FB.save(docId, {
+    var payload = {
       salt: box.salt, iv: box.iv, data: box.data,
       version: next,
       updatedBy: me,
       updatedAt: new Date().toISOString(),
       recordCount: records.length
-    });
+    };
+    if (box.z) payload.z = box.z;
+
+    // Firestore 문서 한계(1MiB) 사전 확인
+    var kb = Math.round(box.data.length / 1024);
+    if (box.data.length > 1000000) {
+      alert('⚠️ 서버에 저장할 수 없습니다.\n\n데이터가 ' + kb + 'KB로 서버 한 문서의 한계(약 1MB)를 넘습니다.' +
+            (box.z ? '' : '\n\n이 브라우저는 압축을 지원하지 않습니다.\n크롬을 최신 버전으로 업데이트해 주세요.'));
+      return;
+    }
+
+    await window.TBDR_FB.save(docId, payload);
 
     syncSetVer(next);
-    syncSetInfo({ dir:'up', by:me, at:new Date().toISOString(), count:records.length });
+    syncSetInfo({ dir:'up', by:me, at:payload.updatedAt, localAt:Date.now(), count:records.length });
+    syncClearDirty();
 
     alert('☁️ 서버에 저장 완료\n\n· 기록 ' + records.length + '건\n· 저장자: ' + me +
+          '\n· 전송 크기: ' + kb + 'KB' +
           '\n\n배우자분은 앱에서 [서버에서 불러오기]를 누르면 됩니다.');
     if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
   } catch (e) {
@@ -5275,30 +5481,63 @@ async function syncDownload(){
       if (!confirm('이미 최신 상태입니다.\n(' + (remote.updatedBy || '?') + '님이 ' + _syncWhen(remote.updatedAt) + '에 저장)\n\n그래도 다시 불러올까요?')) return;
     }
 
-    var plain;
-    try {
-      plain = await _syncDecrypt(pass, remote);
-    } catch (e) {
+    var rr = await _syncReadRemote(pass, remote);
+    if (rr.error === 'pass') {
       alert('❌ 복호화 실패\n\n공유 암호가 배우자와 다릅니다.\n[공유 설정]에서 암호를 확인해주세요.');
       return;
     }
+    if (rr.error) {
+      alert('❌ 서버 데이터를 풀지 못했습니다.\n\n' + (rr.message || '') +
+            '\n\n상대방 앱이 더 새 버전일 수 있습니다.\n앱을 완전히 종료했다가 다시 열어 최신 버전을 받은 뒤 시도해 주세요.');
+      return;
+    }
+    var obj = rr.obj;
+    var incoming = rr.records;
 
-    var obj = JSON.parse(plain);
-    var incoming = [];
-    try { incoming = JSON.parse(obj.data['tdbr_v3'] || '[]'); } catch(e) {}
+    // ── 불러오기 전 경고: 이 기기에만 있는 내용이 사라지는지 확인
+    var srvIds = {};
+    incoming.forEach(function(r){ if (r) srvIds[String(r.id)] = 1; });
+    var lastMs = _syncLastLocalMs();
+    // 마지막 동기화 이후 이 기기에서 새로 입력했고 서버에는 없는 기록
+    var localOnly = records.filter(function(r){
+      return !srvIds[String(r.id)] && (Number(r.id) || 0) > lastMs;
+    });
+    var dirty = syncIsDirty();
+
+    var warn = '';
+    if (localOnly.length > 0) {
+      warn = '⚠️ 이 기기에서만 입력한 기록 ' + localOnly.length + '건이 사라집니다:\n' +
+             _syncRecList(localOnly) + '\n\n' +
+             '필요하면 메모해 두었다가 불러온 뒤 다시 입력하거나,\n주로 입력하는 분께 알려주세요.\n\n';
+    } else if (dirty) {
+      warn = '⚠️ 마지막 동기화 이후 이 기기에서 수정·삭제·설정 변경한\n내용이 있습니다. 불러오면 그 변경은 사라집니다.\n\n';
+    }
 
     var ok = confirm(
       '⬇️ 서버 데이터\n' +
       '· 저장자: ' + (remote.updatedBy || '?') + '\n' +
       '· 저장 시각: ' + _syncWhen(remote.updatedAt) + '\n' +
       '· 기록: ' + incoming.length + '건\n\n' +
+      warn +
       '현재 내 기록 ' + records.length + '건을 지우고\n이 데이터로 교체합니다. 진행할까요?'
     );
     if (!ok) return;
+    // 잃을 내용이 있으면 한 번 더 확인
+    if (warn && !confirm('정말 불러올까요?\n\n' +
+        (localOnly.length > 0 ? '이 기기에서만 입력한 ' + localOnly.length + '건은 되살릴 수 없습니다.'
+                              : '이 기기에서 바꾼 내용은 되살릴 수 없습니다.'))) return;
 
-    syncSetVer(remote.version || 0);
-    syncSetInfo({ dir:'down', by:remote.updatedBy || '?', at:remote.updatedAt, count:incoming.length });
-    _bkOverwrite(obj);   // 저장 후 자동 새로고침
+    // 버전 기록은 교체가 '성공한 뒤에만' 한다.
+    // (예전에는 먼저 기록해서, 교체 실패 시 다음 업로드가 경고 없이 서버를 덮어쓸 수 있었다)
+    var ver = remote.version || 0;
+    _bkOverwrite(obj, {
+      doneMsg: '✅ 불러오기 완료\n\n기록 ' + incoming.length + '건\n앱을 다시 불러옵니다.',
+      after: function(){
+        syncSetVer(ver);
+        syncSetInfo({ dir:'down', by:remote.updatedBy || '?', at:remote.updatedAt, localAt:Date.now(), count:incoming.length });
+        syncClearDirty();
+      }
+    });
   } catch (e) {
     alert('불러오기 실패\n\n' + _syncErr(e));
   }
@@ -5307,7 +5546,9 @@ async function syncDownload(){
 function _syncErr(e){
   var m = (e && e.message) ? e.message : String(e);
   if (m.indexOf('permission') !== -1 || m.indexOf('PERMISSION') !== -1)
-    return '접근이 거부됐습니다.\nFirebase 보안 규칙과 익명 로그인 설정을 확인하세요.';
+    return '서버가 저장을 거부했습니다.\n\n방금 다른 기기에서 먼저 저장했을 수 있습니다.\n[서버에서 불러오기] 후 다시 시도해 주세요.\n\n계속 이러면 Firebase 보안 규칙과\n익명 로그인 설정을 확인하세요.';
+  if (m.indexOf('exceeds the maximum') !== -1 || m.indexOf('too large') !== -1)
+    return '데이터가 서버 한 문서의 한계(약 1MB)를 넘었습니다.';
   if (m.indexOf('auth/') !== -1 || m.indexOf('unauthorized-domain') !== -1)
     return '인증 실패.\nFirebase Authentication → 승인된 도메인에\nshookup21-lang.github.io 를 추가했는지 확인하세요.';
   if (m.indexOf('offline') !== -1 || m.indexOf('network') !== -1 || m.indexOf('Failed to fetch') !== -1)

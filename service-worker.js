@@ -1,14 +1,30 @@
-// TBDR 가계부 PWA 서비스워커 (v4)
+// TBDR 가계부 PWA 서비스워커 (v5)
 // 전략: 네트워크 우선(온라인이면 항상 최신 화면) + 실패 시 캐시(오프라인 대비)
 // → GitHub의 index.html만 교체하면, 온라인에서 다음 실행 때 자동으로 최신 화면이 반영됩니다.
+//
+// v5 변경: 우리 사이트 파일과 Firebase SDK(gstatic)만 처리한다.
+//   Firestore 통신(firestore.googleapis.com)은 GET 스트리밍 요청이라
+//   예전처럼 전부 가로채면 동기화할 때마다 쓸모없는 응답이 캐시에 쌓였다.
 
-const CACHE = 'tbdr-cache-v4';
+const CACHE = 'tbdr-cache-v5';
 const PRECACHE = [
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
 ];
+
+// 서비스워커가 다룰 요청인가?
+//  - 같은 출처(우리 GitHub Pages 파일)
+//  - www.gstatic.com (Firebase SDK 파일 — 버전이 주소에 박혀 있어 캐시해도 안전,
+//    오프라인에서 앱을 열 때도 SDK를 불러올 수 있게 해 준다)
+function shouldHandle(req) {
+  var url;
+  try { url = new URL(req.url); } catch (e) { return false; }
+  if (url.origin === self.location.origin) return true;
+  if (url.hostname === 'www.gstatic.com' && url.pathname.indexOf('/firebasejs/') === 0) return true;
+  return false;
+}
 
 // 설치: 핵심 파일을 미리 캐시 (첫 오프라인 대비)
 self.addEventListener('install', function (e) {
@@ -20,7 +36,7 @@ self.addEventListener('install', function (e) {
   );
 });
 
-// 활성화: 이전 버전 캐시 정리
+// 활성화: 이전 버전 캐시 정리 (v4에 쌓인 Firestore 응답도 여기서 함께 지워진다)
 self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys().then(function (keys) {
@@ -36,6 +52,7 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
+  if (!shouldHandle(req)) return;   // 그 외(Firestore·인증 등)는 브라우저가 직접 처리
 
   e.respondWith(
     fetch(req).then(function (res) {
