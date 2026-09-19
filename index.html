@@ -403,6 +403,20 @@
 .sync-btn.down { background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; }
 body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color:#334155; }
 .stats-summary2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+/* PC 모드 암호 화면 */
+.tbdr-gate { position:fixed; inset:0; z-index:10000; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
+.tbdr-gate-box { width:100%; max-width:360px; background:var(--card); border:1px solid var(--border); border-radius:18px; padding:28px 22px 20px; box-shadow:var(--shadow); }
+.tbdr-gate-title { font-size:21px; font-weight:800; color:var(--text); margin-bottom:6px; }
+.tbdr-gate-sub { font-size:13px; color:var(--text-sub); line-height:1.6; margin-bottom:20px; }
+.tbdr-gate-label { display:block; font-size:12.5px; font-weight:600; color:var(--text-sub); margin:0 0 6px; }
+.tbdr-gate-input { width:100%; box-sizing:border-box; padding:13px 14px; border-radius:11px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:16px; font-family:inherit; margin-bottom:14px; }
+.tbdr-gate-input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+.tbdr-gate-open { width:100%; padding:15px; border:none; border-radius:12px; background:var(--accent); color:#fff; font-size:15.5px; font-weight:700; font-family:inherit; cursor:pointer; }
+.tbdr-gate-open:disabled { opacity:.55; cursor:default; }
+.tbdr-gate-msg { min-height:20px; font-size:13px; color:var(--red); margin:12px 0 4px; line-height:1.5; white-space:pre-line; }
+.tbdr-gate-msg.info { color:var(--text-sub); }
+.tbdr-gate-local { width:100%; margin-top:10px; padding:11px; border:none; background:transparent; color:var(--text-muted); font-size:12.5px; font-family:inherit; cursor:pointer; text-decoration:underline; }
+.nav-btn.lock-btn { font-size:18px; }
 </style>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5F6FA">
@@ -523,7 +537,36 @@ body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-19_16:15';
+const APP_BUILD = '2026-09-19_18:30';
+
+// ═══════════════════════════════════════════════════════════════
+// 기기 모드
+//  'local'   : 이 기기에 저장해서 쓰는 기본 모드 (휴대폰 앱)
+//  'session' : 매번 공유 암호로 여는 모드 (PC·태블릿 크롬)
+//              데이터는 이 탭에만(sessionStorage) 두고, 탭을 닫으면 사라진다.
+//              바꾼 내용은 곧바로 서버에 저장한다 (sessionAutoUpload).
+// 판정: 저장된 기록·공유 설정이 있거나, '이 기기에 저장해서 쓰기'를 고른 기기 → local
+//       아무것도 없는 새 기기 → session (암호 화면)
+// ※ 앱의 모든 저장소 접근은 STORE를 통한다. localStorage를 직접 쓰지 말 것.
+//   (예외: 테마, 기기 모드, 암호 화면의 이름 기억 — 민감하지 않은 기기 설정)
+// ═══════════════════════════════════════════════════════════════
+const DEVICE_MODE_KEY = 'tdbr_device_mode';
+const TBDR_MODE = (function(){
+  try {
+    const ls = window.localStorage;
+    if (ls.getItem(DEVICE_MODE_KEY) === 'local') return 'local';
+    const recs = ls.getItem('tdbr_v3');
+    if (ls.getItem('tdbr_sync_pass') || (recs && recs !== '[]')) {
+      ls.setItem(DEVICE_MODE_KEY, 'local');   // 기존 휴대폰은 앞으로도 local로 고정
+      return 'local';
+    }
+    return 'session';
+  } catch (e) { return 'local'; }
+})();
+const STORE = (TBDR_MODE === 'session') ? window.sessionStorage : window.localStorage;
+// session 모드에서 암호로 연 상태인가 (공유 암호가 이 탭에 들어 있으면 연 것)
+const TBDR_UNLOCKED = TBDR_MODE !== 'session' ||
+  !!(function(){ try { return STORE.getItem('tdbr_sync_pass'); } catch(e) { return null; } })();
 
 // 한국 시간(KST=UTC+9) 기준 yyyymmdd_HHMM 문자열 반환
 // 폰의 timezone 설정과 무관하게 항상 한국 시간으로 동작
@@ -578,7 +621,7 @@ const SAVINGS_KEY = 'tdbr_savings_accounts';
 const LOANS_KEY = 'tdbr_loans_accounts';
 
 // ── 테마 전환 ──
-function loadTheme(){ try { return localStorage.getItem(THEME_KEY) || 'light'; } catch { return 'light'; } }
+function loadTheme(){ try { return window.localStorage.getItem(THEME_KEY) || 'light'; } catch { return 'light'; } }
 function applyTheme(theme){
   const body=document.getElementById('app-body');
   if(!body) return;
@@ -605,7 +648,7 @@ function applyTheme(theme){
 function toggleTheme(){
   const cur=loadTheme();
   const next=(cur==='dark')?'light':'dark';
-  try { localStorage.setItem(THEME_KEY, next); } catch {}
+  try { window.localStorage.setItem(THEME_KEY, next); } catch {}
   applyTheme(next);
 }
 // 페이지 로드 즉시 테마 적용 (FOUC 방지)
@@ -677,22 +720,46 @@ const _INIT_CATS={"수입": {}, "이체대체": {}, "지출": {}, "저축": {}, 
 const _INIT_PAY=[];
 const _INIT_CARDS=[];
 let records=[];
-try{const s=localStorage.getItem(STORAGE_KEY);records=s?JSON.parse(s):JSON.parse(JSON.stringify(_INIT_RECORDS));}catch{records=JSON.parse(JSON.stringify(_INIT_RECORDS));}
+try{const s=STORE.getItem(STORAGE_KEY);records=s?JSON.parse(s):JSON.parse(JSON.stringify(_INIT_RECORDS));}catch{records=JSON.parse(JSON.stringify(_INIT_RECORDS));}
 (function(){
   try{
-    if(!localStorage.getItem('tdbr_v3_categories'))localStorage.setItem('tdbr_v3_categories',JSON.stringify(_INIT_CATS));
-    if(!localStorage.getItem('tdbr_pay_general'))localStorage.setItem('tdbr_pay_general',JSON.stringify(_INIT_PAY));
-    if(!localStorage.getItem('tdbr_card_settings'))localStorage.setItem('tdbr_card_settings',JSON.stringify(_INIT_CARDS));
+    if(!STORE.getItem('tdbr_v3_categories'))STORE.setItem('tdbr_v3_categories',JSON.stringify(_INIT_CATS));
+    if(!STORE.getItem('tdbr_pay_general'))STORE.setItem('tdbr_pay_general',JSON.stringify(_INIT_PAY));
+    if(!STORE.getItem('tdbr_card_settings'))STORE.setItem('tdbr_card_settings',JSON.stringify(_INIT_CARDS));
   }catch{}
 })()
 // 이 기기에서 데이터가 바뀌었음을 표시 (서버 불러오기 전 경고에 사용, 기기별 키)
 const SYNC_DIRTY_KEY = 'tdbr_sync_dirty';
-function markLocalDirty(){ try { localStorage.setItem(SYNC_DIRTY_KEY, String(Date.now())); } catch(e){} }
+function markLocalDirty(){
+  try { STORE.setItem(SYNC_DIRTY_KEY, String(Date.now())); } catch(e){}
+  if (TBDR_MODE === 'session' && typeof scheduleAutoUpload === 'function') scheduleAutoUpload();
+}
+
+// 공용 안내 토스트 (화면 아래 잠깐 뜨는 알림)
+function tbdrToast(msg, ms){
+  let el = document.getElementById('tbdr-toast-global');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tbdr-toast-global';
+    el.className = 'tbdr-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, ms || 2000);
+}
+
+// PC 모드에서 서버 전체를 바꾸는 큰 작업 전 추가 확인
+function sessionBigChangeOK(what){
+  if (TBDR_MODE !== 'session') return true;
+  return confirm('💻 PC 모드 안내\n\n' + what + '\n\n이 내용은 곧바로 서버에 저장되어\n휴대폰에서 불러오면 그대로 반영됩니다.\n계속할까요?');
+}
 
 // 설정류 저장 공통 함수: 용량 초과 시 예외를 삼키지 않고 경고 후 false 반환
 function _lsSet(key, value){
   try {
-    localStorage.setItem(key, value);
+    STORE.setItem(key, value);
     markLocalDirty();
     return true;
   } catch(e) {
@@ -704,9 +771,9 @@ function _lsSet(key, value){
 function save() {
   try {
     const json = JSON.stringify(records);
-    localStorage.setItem(STORAGE_KEY, json);
+    STORE.setItem(STORAGE_KEY, json);
     // 검증: 실제로 저장됐는지 다시 읽어서 길이 비교
-    const verify = localStorage.getItem(STORAGE_KEY);
+    const verify = STORE.getItem(STORAGE_KEY);
     if (verify === null || verify.length !== json.length) {
       throw new Error('저장 검증 실패');
     }
@@ -716,7 +783,7 @@ function save() {
     // 메모리(records)를 실제로 저장돼 있는 상태로 되돌린다.
     // 화면에는 보이는데 저장은 안 된 '유령 기록'을 막기 위함.
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = STORE.getItem(STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
       if (Array.isArray(parsed)) records = parsed;
     } catch (e2) {}
@@ -743,11 +810,11 @@ const _TEST_KEY_PREFIX = '__tdbr_limit_test__';
 // 임시 테스트 데이터 모두 삭제
 function _cleanupLimitTest(){
   const keys = [];
-  for(let i=0; i<localStorage.length; i++){
-    const k = localStorage.key(i);
+  for(let i=0; i<STORE.length; i++){
+    const k = STORE.key(i);
     if(k && k.startsWith(_TEST_KEY_PREFIX)) keys.push(k);
   }
-  keys.forEach(k => { try{localStorage.removeItem(k);}catch(e){} });
+  keys.forEach(k => { try{STORE.removeItem(k);}catch(e){} });
 }
 
 // 주어진 크기(바이트)의 문자열 저장이 가능한지 시도
@@ -758,14 +825,14 @@ function _canStore(sizeBytes){
   // 'A' 문자로 채운 문자열 (1바이트씩)
   const data = 'A'.repeat(sizeBytes);
   try{
-    localStorage.setItem(key, data);
+    STORE.setItem(key, data);
     // 검증
-    const v = localStorage.getItem(key);
+    const v = STORE.getItem(key);
     const ok = (v !== null && v.length === sizeBytes);
-    localStorage.removeItem(key);
+    STORE.removeItem(key);
     return ok;
   } catch(e) {
-    try{ localStorage.removeItem(key); }catch(e2){}
+    try{ STORE.removeItem(key); }catch(e2){}
     return false;
   }
 }
@@ -781,7 +848,7 @@ async function measureStorageLimit(){
   
   // 현재 records 크기를 같이 고려: 빈 키 + 테스트 키로만 측정
   // (records는 이미 STORAGE_KEY에 저장된 상태)
-  const currentDataSize = (localStorage.getItem(STORAGE_KEY)||'').length;
+  const currentDataSize = (STORE.getItem(STORAGE_KEY)||'').length;
   
   try {
     // 1단계: 초기 범위 정하기 (지수적으로 늘려서 실패 지점 찾기)
@@ -870,7 +937,7 @@ async function measureStorageLimit(){
     
     // 측정 결과를 저장 (다음 번에 안전장치 임계값으로 활용 가능)
     try{
-      localStorage.setItem('tdbr_storage_limit', String(limitBytes + currentBytes));
+      STORE.setItem('tdbr_storage_limit', String(limitBytes + currentBytes));
     }catch(e){}
     
     // 설정 페이지가 열려있으면 다시 그려서 위쪽 표시 갱신
@@ -886,11 +953,11 @@ async function measureStorageLimit(){
 // ─────────────────────────────────────
 
 // 설정 / 카테고리 / 카드 / 내 지갑
-function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY))||{}; } catch { return {}; } }
+function loadSettings() { try { return JSON.parse(STORE.getItem(SETTINGS_KEY))||{}; } catch { return {}; } }
 
 function loadCategories() {
   try {
-    const s=localStorage.getItem(CATEGORIES_KEY);
+    const s=STORE.getItem(CATEGORIES_KEY);
     return s?JSON.parse(s):JSON.parse(JSON.stringify(CATEGORIES));
   } catch { return JSON.parse(JSON.stringify(CATEGORIES)); }
 }
@@ -899,17 +966,17 @@ function getMids(cat){ const cats=loadCategories(); return cats[cat]?Object.keys
 // 소분류 목록 반환
 function getSubs(cat,mid){ const cats=loadCategories(); return (cats[cat]&&cats[cat][mid])?cats[cat][mid]: []; }
 function saveCategories(cats) { return _lsSet(CATEGORIES_KEY,JSON.stringify(cats)); }
-function loadDefaultCategories() { try { const s=localStorage.getItem(DEFAULT_CATEGORIES_KEY); return s?JSON.parse(s):null; } catch { return null; } }
+function loadDefaultCategories() { try { const s=STORE.getItem(DEFAULT_CATEGORIES_KEY); return s?JSON.parse(s):null; } catch { return null; } }
 function saveDefaultCategories(cats) { return _lsSet(DEFAULT_CATEGORIES_KEY,JSON.stringify(cats)); }
-function loadCardSettings() { try { return JSON.parse(localStorage.getItem(CARD_STORAGE))||[]; } catch { return []; } }
+function loadCardSettings() { try { return JSON.parse(STORE.getItem(CARD_STORAGE))||[]; } catch { return []; } }
 function saveCardSettings(arr) { return _lsSet(CARD_STORAGE,JSON.stringify(arr)); }
-function loadPayGeneral() { try { const s=localStorage.getItem(PAY_GENERAL_KEY); return s?JSON.parse(s):[...PAY_GENERAL]; } catch { return [...PAY_GENERAL]; } }
+function loadPayGeneral() { try { const s=STORE.getItem(PAY_GENERAL_KEY); return s?JSON.parse(s):[...PAY_GENERAL]; } catch { return [...PAY_GENERAL]; } }
 function savePayGeneral(list) { return _lsSet(PAY_GENERAL_KEY,JSON.stringify(list)); }
 // 저축: [{name, sub, start}]  sub=거래 소분류와 매칭
-function loadSavingsAccounts() { try { return JSON.parse(localStorage.getItem(SAVINGS_KEY))||[]; } catch { return []; } }
+function loadSavingsAccounts() { try { return JSON.parse(STORE.getItem(SAVINGS_KEY))||[]; } catch { return []; } }
 function saveSavingsAccounts(arr) { return _lsSet(SAVINGS_KEY,JSON.stringify(arr)); }
 // 대출: [{name, sub, start}]  sub=원금상환 거래의 소분류
-function loadLoansAccounts() { try { return JSON.parse(localStorage.getItem(LOANS_KEY))||[]; } catch { return []; } }
+function loadLoansAccounts() { try { return JSON.parse(STORE.getItem(LOANS_KEY))||[]; } catch { return []; } }
 function saveLoansAccounts(arr) { return _lsSet(LOANS_KEY,JSON.stringify(arr)); }
 // HTML 이스케이프 (저축/대출 이름 등 사용자 입력값 안전 표시)
 function escapeHTML(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -1732,7 +1799,11 @@ function renderSettings(){
   h+='<button type="button" class="sync-btn up" onclick="syncUpload()">↑ 서버에 저장</button>';
   h+='<button type="button" class="sync-btn down" onclick="syncDownload()">↓ 불러오기</button>';
   h+='</div></div>';
-  h+='<div class="settings-row" onclick="openSyncSettings()"><div class="settings-row-left"><div class="settings-row-title">공유 설정</div><div class="settings-row-sub">내 이름과 부부 공유 암호</div></div><div class="settings-row-right">›</div></div>';
+  if(TBDR_MODE==='session'){
+    h+='<div class="settings-row" onclick="sessionLock()"><div class="settings-row-left"><div class="settings-row-title">🔒 잠그기</div><div class="settings-row-sub">이 탭의 가계부를 지우고 암호 화면으로 돌아갑니다</div></div><div class="settings-row-right">›</div></div>';
+  } else {
+    h+='<div class="settings-row" onclick="openSyncSettings()"><div class="settings-row-left"><div class="settings-row-title">공유 설정</div><div class="settings-row-sub">내 이름과 부부 공유 암호</div></div><div class="settings-row-right">›</div></div>';
+  }
   h+='</div>';
 
   // ── 2) 기본 설정 ─────────────────────────
@@ -1767,9 +1838,9 @@ function renderBackupPage(){
   const storageSize = JSON.stringify(records).length;
   const sizeMB = (storageSize / 1024 / 1024).toFixed(2);
   // 측정된 한계값이 있으면 사용, 없으면 기본 추정치 3MB
-  const measuredLimit = parseInt(localStorage.getItem('tdbr_storage_limit')) || 3_000_000;
+  const measuredLimit = parseInt(STORE.getItem('tdbr_storage_limit')) || 3_000_000;
   const limitMB = (measuredLimit / 1024 / 1024).toFixed(2);
-  const hasMeasured = !!localStorage.getItem('tdbr_storage_limit');
+  const hasMeasured = !!STORE.getItem('tdbr_storage_limit');
   const sizePercent = Math.min(100, Math.round(storageSize / measuredLimit * 100));
   let barColor = 'var(--green)';
   let statusText = '안전';
@@ -1815,7 +1886,7 @@ function saveAsDefault(){
   };
   // localStorage에 저장 (두 키 모두 - 호환성)
   try{
-    localStorage.setItem('tbdr_settings_saved', JSON.stringify(snapshot));
+    STORE.setItem('tbdr_settings_saved', JSON.stringify(snapshot));
     saveDefaultCategories(snapshot);
   }catch(e){console.error('저장 실패:', e);}
   
@@ -3087,7 +3158,7 @@ function openSubModalFromEl(el){
 
 function showDefaultSettings(){
   showPage('default-settings-page');
-  const saved=loadDefaultCategories()||(()=>{try{const s=localStorage.getItem('tbdr_settings_saved');return s?JSON.parse(s):null;}catch(e){return null;}})();const hasDefault=!!saved;
+  const saved=loadDefaultCategories()||(()=>{try{const s=STORE.getItem('tbdr_settings_saved');return s?JSON.parse(s):null;}catch(e){return null;}})();const hasDefault=!!saved;
   const current=loadCategories();
   const catKeys=Object.keys(current);
   let midCount=0,subCount=0;
@@ -4376,7 +4447,7 @@ function doImportAdd(){
   const estimatedSize = JSON.stringify(merged).length;
   const sizeMB = (estimatedSize / 1024 / 1024).toFixed(2);
   // 측정된 한계가 있으면 그걸 사용, 없으면 보수적 추정 2.5MB
-  const limit = parseInt(localStorage.getItem('tdbr_storage_limit')) || 2_500_000;
+  const limit = parseInt(STORE.getItem('tdbr_storage_limit')) || 2_500_000;
   const limitMB = (limit / 1024 / 1024).toFixed(2);
   if (estimatedSize > limit * 0.85) {  // 한계의 85% 넘으면 경고
     if (!confirm(
@@ -4403,10 +4474,11 @@ function doImportAdd(){
 function doImportReplace(){
   const imported=window._pendingImport; if(!imported) return;
   if(!confirm('기존 데이터 '+records.length+'건을 모두 삭제하고\n'+imported.length+'건으로 교체할까요?'))return;
+  if(!sessionBigChangeOK('서버의 가계부 '+records.length+'건이 CSV의 '+imported.length+'건으로 교체됩니다.'))return;
   // 사전 크기 체크
   const estimatedSize = JSON.stringify(imported).length;
   const sizeMB = (estimatedSize / 1024 / 1024).toFixed(2);
-  const limit = parseInt(localStorage.getItem('tdbr_storage_limit')) || 2_500_000;
+  const limit = parseInt(STORE.getItem('tdbr_storage_limit')) || 2_500_000;
   const limitMB = (limit / 1024 / 1024).toFixed(2);
   if (estimatedSize > limit * 0.85) {
     if (!confirm(
@@ -4472,6 +4544,10 @@ function parseCSVLine(line){
 }
 
 function confirmClearAll(){
+  if (TBDR_MODE === 'session') {
+    alert('💻 PC 모드에서는 전체 삭제를 할 수 없습니다.\n\n서버의 가계부까지 모두 비워지기 때문입니다.\n필요하면 휴대폰 앱에서 해주세요.');
+    return;
+  }
   if(!confirm('정말로 모든 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
   if(!confirm('⚠️ 최종 확인\n\n모든 가계부 기록이 영구 삭제됩니다.\n정말로 진행하시겠습니까?')) return;
   records=[];save();alert('전체 데이터가 삭제되었습니다.');renderSettings();
@@ -4847,7 +4923,7 @@ function _bkObject(){
   var data = {};
   BACKUP_KEYS.forEach(function(k){
     var v = null;
-    try { v = localStorage.getItem(k); } catch(e) {}
+    try { v = STORE.getItem(k); } catch(e) {}
     if (v !== null) data[k] = v;
   });
   var cnt = 0;
@@ -4948,7 +5024,7 @@ function _bkRead(file){
       '이 기기의 모든 데이터(' + records.length + '건)를 지우고\n' +
       '백업 파일(' + incoming.length + '건)로 완전히 교체합니다.\n\n' +
       '되돌릴 수 없습니다. 진행할까요?'
-    )) {
+    ) && sessionBigChangeOK('서버의 가계부가 백업 파일(' + incoming.length + '건)로 교체됩니다.')) {
       // 파일 복구는 '이 기기의 변경'이므로 서버와 다름 표시를 남긴다
       _bkOverwrite(obj, { doneMsg:'✅ 복구 완료\n\n앱을 다시 불러옵니다.', after:function(){ markLocalDirty(); } });
     }
@@ -4966,26 +5042,27 @@ function _bkOverwrite(obj, opts){
   opts = opts || {};
   var snap = {};
   BACKUP_KEYS.forEach(function(k){
-    try { snap[k] = localStorage.getItem(k); } catch(e) { snap[k] = null; }
+    try { snap[k] = STORE.getItem(k); } catch(e) { snap[k] = null; }
   });
   try {
     BACKUP_KEYS.forEach(function(k){
-      if (typeof obj.data[k] === 'string') localStorage.setItem(k, obj.data[k]);
-      else localStorage.removeItem(k);
+      if (typeof obj.data[k] === 'string') STORE.setItem(k, obj.data[k]);
+      else STORE.removeItem(k);
     });
   } catch(e) {
     // 되돌리기
     BACKUP_KEYS.forEach(function(k){
       try {
-        if (snap[k] === null) localStorage.removeItem(k);
-        else localStorage.setItem(k, snap[k]);
+        if (snap[k] === null) STORE.removeItem(k);
+        else STORE.setItem(k, snap[k]);
       } catch(e2) {}
     });
     alert('교체 실패: ' + e.message + '\n\n저장 공간이 부족할 수 있습니다.\n기존 데이터는 그대로 두었습니다.');
     return false;
   }
   if (typeof opts.after === 'function') { try { opts.after(); } catch(e) {} }
-  alert(opts.doneMsg || '✅ 복구 완료\n\n앱을 다시 불러옵니다.');
+  if (!opts.silent) alert(opts.doneMsg || '✅ 복구 완료\n\n앱을 다시 불러옵니다.');
+  window.__tbdrReloading = true;
   location.reload();
   return true;
 }
@@ -5035,6 +5112,7 @@ function _bkMerge(obj, incoming){
     var nCat = _bkMergeCats(obj);
     var nLst = _bkMergeLists(obj);
 
+    window.__tbdrReloading = true;
     alert(
       '✅ 합치기 완료\n\n' +
       '· 새로 추가: ' + added + '건\n' +
@@ -5188,19 +5266,23 @@ var SYNC_VER_KEY  = 'tdbr_sync_version';  // 내가 마지막으로 맞춘 서�
 var SYNC_INFO_KEY = 'tdbr_sync_info';     // 마지막 동기화 기록 (표시용)
 
 // ── 공유 설정 ──────────────────────────────────
-function syncGetName(){ try { return localStorage.getItem(SYNC_NAME_KEY) || ''; } catch(e){ return ''; } }
-function syncGetPass(){ try { return localStorage.getItem(SYNC_PASS_KEY) || ''; } catch(e){ return ''; } }
-function syncGetVer(){  try { return parseInt(localStorage.getItem(SYNC_VER_KEY) || '0', 10) || 0; } catch(e){ return 0; } }
-function syncSetVer(v){ try { localStorage.setItem(SYNC_VER_KEY, String(v)); } catch(e){} }
+function syncGetName(){ try { return STORE.getItem(SYNC_NAME_KEY) || ''; } catch(e){ return ''; } }
+function syncGetPass(){ try { return STORE.getItem(SYNC_PASS_KEY) || ''; } catch(e){ return ''; } }
+function syncGetVer(){  try { return parseInt(STORE.getItem(SYNC_VER_KEY) || '0', 10) || 0; } catch(e){ return 0; } }
+function syncSetVer(v){ try { STORE.setItem(SYNC_VER_KEY, String(v)); } catch(e){} }
 
 function syncGetInfo(){
-  try { return JSON.parse(localStorage.getItem(SYNC_INFO_KEY) || 'null'); } catch(e){ return null; }
+  try { return JSON.parse(STORE.getItem(SYNC_INFO_KEY) || 'null'); } catch(e){ return null; }
 }
 function syncSetInfo(o){
-  try { localStorage.setItem(SYNC_INFO_KEY, JSON.stringify(o)); } catch(e){}
+  try { STORE.setItem(SYNC_INFO_KEY, JSON.stringify(o)); } catch(e){}
 }
 
 function openSyncSettings(){
+  if (TBDR_MODE === 'session') {
+    alert('💻 PC 모드에서는 공유 설정을 바꾸지 않습니다.\n암호는 열 때마다 입력합니다.');
+    return;
+  }
   var name = prompt('이 기기를 쓰는 사람 이름을 입력하세요.\n(상대방이 누가 저장했는지 볼 때 표시됩니다)', syncGetName() || '');
   if (name === null) return;
   name = name.trim();
@@ -5223,9 +5305,9 @@ function openSyncSettings(){
   }
 
   try {
-    localStorage.setItem(SYNC_NAME_KEY, name);
-    if (pass !== cur) { localStorage.setItem(SYNC_PASS_KEY, pass); syncSetVer(0); }
-    else { localStorage.setItem(SYNC_PASS_KEY, pass); }
+    STORE.setItem(SYNC_NAME_KEY, name);
+    if (pass !== cur) { STORE.setItem(SYNC_PASS_KEY, pass); syncSetVer(0); }
+    else { STORE.setItem(SYNC_PASS_KEY, pass); }
   } catch(e) { alert('설정 저장 실패: ' + e.message); return; }
 
   alert('✅ 공유 설정 완료\n\n이름: ' + name + '\n암호: ' + pass.replace(/./g, '•') +
@@ -5375,8 +5457,8 @@ function _syncLastLocalMs(){
   var t = Date.parse(i.at);
   return isNaN(t) ? 0 : t;
 }
-function syncIsDirty(){ try { return !!localStorage.getItem(SYNC_DIRTY_KEY); } catch(e){ return false; } }
-function syncClearDirty(){ try { localStorage.removeItem(SYNC_DIRTY_KEY); } catch(e){} }
+function syncIsDirty(){ try { return !!STORE.getItem(SYNC_DIRTY_KEY); } catch(e){ return false; } }
+function syncClearDirty(){ try { STORE.removeItem(SYNC_DIRTY_KEY); } catch(e){} }
 
 function _syncWhen(iso){
   try { return new Date(iso).toLocaleString('ko-KR'); } catch(e) { return '알 수 없음'; }
@@ -5557,7 +5639,233 @@ function _syncErr(e){
 }
 
 // 설정 화면에 표시할 현재 상태 문구
+// Firebase SDK(모듈)가 준비될 때까지 기다린다 (최대 ms)
+function _syncWaitFB(ms){
+  return new Promise(function(resolve){
+    var t0 = Date.now();
+    (function tick(){
+      var fb = window.TBDR_FB;
+      if (fb && !fb.loading) return resolve(fb);
+      if (Date.now() - t0 > ms) return resolve(fb || null);
+      setTimeout(tick, 150);
+    })();
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   PC 모드 (TBDR_MODE === 'session')
+   ═══════════════════════════════════════════════ */
+
+// ── 자동 저장: 바꾼 내용을 1.2초 모아서 서버에 올린다 ──
+var _autoUpTimer = null, _autoUpBusy = false, _autoUpAgain = false;
+function scheduleAutoUpload(){
+  if (TBDR_MODE !== 'session' || !TBDR_UNLOCKED) return;
+  clearTimeout(_autoUpTimer);
+  _autoUpTimer = setTimeout(sessionAutoUpload, 1200);
+}
+
+async function sessionAutoUpload(){
+  if (TBDR_MODE !== 'session' || !TBDR_UNLOCKED) return;
+  if (_autoUpBusy) { _autoUpAgain = true; return; }
+  if (!syncIsDirty()) return;
+  _autoUpBusy = true;
+  var dirtyAt = null;
+  try { dirtyAt = STORE.getItem(SYNC_DIRTY_KEY); } catch(e) {}
+  try {
+    var fb = await _syncWaitFB(10000);
+    if (!fb || !fb.configured) throw new Error((fb && fb.error) || '서버 연결 준비 중');
+    var pass = syncGetPass(), me = syncGetName();
+    var docId = await _syncDocId(pass);
+    var remote = await fb.load(docId);
+
+    // 휴대폰에서 먼저 저장했다 → 덮어쓰지 않고 불러오기로 안내
+    if (remote && (remote.version || 0) > syncGetVer()) {
+      alert('⚠️ 다른 기기에서 먼저 저장한 내용이 있어\n이 PC에서 바꾼 내용을 서버에 올리지 못했습니다.\n\n다음 화면에서 최신 내용을 불러오세요.\n(사라지는 기록이 있으면 목록으로 보여드립니다)');
+      await syncDownload();
+      return;
+    }
+
+    var box = await _syncEncrypt(pass, JSON.stringify(_bkObject()));
+    if (box.data.length > 1000000) {
+      alert('⚠️ 서버에 저장할 수 없습니다.\n데이터가 서버 한 문서의 한계(약 1MB)를 넘습니다.');
+      return;
+    }
+    var payload = {
+      salt: box.salt, iv: box.iv, data: box.data,
+      version: (remote && remote.version ? remote.version : 0) + 1,
+      updatedBy: me, updatedAt: new Date().toISOString(), recordCount: records.length
+    };
+    if (box.z) payload.z = box.z;
+    await fb.save(docId, payload);
+
+    syncSetVer(payload.version);
+    syncSetInfo({ dir:'up', by:me, at:payload.updatedAt, localAt:Date.now(), count:records.length });
+    // 올리는 동안 또 바뀌었으면 표시를 남겨 한 번 더 올린다
+    var nowDirty = null;
+    try { nowDirty = STORE.getItem(SYNC_DIRTY_KEY); } catch(e) {}
+    if (nowDirty === dirtyAt) syncClearDirty(); else _autoUpAgain = true;
+    tbdrToast('☁️ 서버에 저장됨');
+  } catch (e) {
+    var m = _syncErr(e).split('\n')[0];
+    tbdrToast('⚠️ 서버 저장 실패 · ' + m + ' (다음 변경 때 다시 시도)', 3500);
+  } finally {
+    _autoUpBusy = false;
+    if (_autoUpAgain) { _autoUpAgain = false; scheduleAutoUpload(); }
+    var sp = document.getElementById('settings-page');
+    if (sp && sp.classList.contains('active') && typeof renderSettings === 'function') { try { renderSettings(); } catch(e){} }
+  }
+}
+
+// ── 잠그기: 이 탭의 데이터를 지우고 암호 화면으로 ──
+function sessionLock(){
+  if (TBDR_MODE !== 'session') return;
+  if (syncIsDirty() && !confirm('⚠️ 아직 서버에 저장되지 않은 변경이 있습니다.\n잠그면 그 변경은 사라집니다.\n\n그래도 잠글까요?')) return;
+  try { STORE.clear(); } catch(e) {}
+  window.__tbdrReloading = true;
+  location.reload();
+}
+
+// ── 다시 이 탭으로 돌아오면 서버에 새 내용이 있는지 확인 (최대 30초에 한 번) ──
+var _sessCheckAt = 0;
+async function sessionRefreshIfNewer(){
+  if (TBDR_MODE !== 'session' || !TBDR_UNLOCKED) return;
+  if (_autoUpBusy || syncIsDirty()) return;   // 내 변경이 있으면 자동 업로드 쪽에서 처리
+  var mp = document.getElementById('main-page');
+  if (!mp || !mp.classList.contains('active')) return;   // 입력 중일 수 있는 화면은 건드리지 않음
+  if (Date.now() - _sessCheckAt < 30000) return;
+  _sessCheckAt = Date.now();
+  try {
+    var fb = window.TBDR_FB;
+    if (!fb || !fb.configured) return;
+    var pass = syncGetPass();
+    var remote = await fb.load(await _syncDocId(pass));
+    if (!remote || (remote.version || 0) <= syncGetVer()) return;
+    var rr = await _syncReadRemote(pass, remote);
+    if (rr.error) return;
+    if (syncIsDirty()) return;   // 확인하는 사이 입력이 생겼으면 중단
+    var ver = remote.version || 0;
+    _bkOverwrite(rr.obj, { silent:true, after:function(){
+      syncSetVer(ver);
+      syncSetInfo({ dir:'down', by:remote.updatedBy || '?', at:remote.updatedAt, localAt:Date.now(), count:rr.records.length });
+      syncClearDirty();
+    }});
+  } catch(e) {}
+}
+
+// ── 암호 화면 ──
+function _gateMsg(t, info){
+  var el = document.getElementById('gate-msg');
+  if (el) { el.textContent = t || ''; el.className = 'tbdr-gate-msg' + (info ? ' info' : ''); }
+}
+
+async function gateOpen(){
+  var btn = document.getElementById('gate-open');
+  var name = (document.getElementById('gate-name').value || '').trim() || 'PC';
+  var pass = (document.getElementById('gate-pass').value || '').trim();
+  if (!pass) { _gateMsg('공유 암호를 입력하세요.'); return; }
+  if (!window.crypto || !window.crypto.subtle) { _gateMsg('https:// 주소로 접속해야 합니다.'); return; }
+  btn.disabled = true;
+  _gateMsg('서버에서 불러오는 중…', true);
+  try {
+    var fb = await _syncWaitFB(15000);
+    if (!fb || !fb.configured) throw new Error(fb && fb.error ? fb.error : '서버에 연결하지 못했습니다. 인터넷 연결을 확인하세요.');
+    var remote = await fb.load(await _syncDocId(pass));
+    // 암호가 다르면 문서 위치 자체가 달라서 '없음'으로 나온다
+    if (!remote) { _gateMsg('암호가 맞지 않거나, 서버에 저장된 가계부가 없습니다.'); btn.disabled = false; return; }
+    var rr = await _syncReadRemote(pass, remote);
+    if (rr.error === 'pass') { _gateMsg('암호가 맞지 않습니다.'); btn.disabled = false; return; }
+    if (rr.error) { _gateMsg('서버 데이터를 풀지 못했습니다.\n' + (rr.message || '')); btn.disabled = false; return; }
+
+    // 이 탭(sessionStorage)에만 채운다
+    try { STORE.clear(); } catch(e) {}
+    BACKUP_KEYS.forEach(function(k){
+      if (typeof rr.obj.data[k] === 'string') STORE.setItem(k, rr.obj.data[k]);
+    });
+    STORE.setItem(SYNC_NAME_KEY, name);
+    STORE.setItem(SYNC_PASS_KEY, pass);
+    syncSetVer(remote.version || 0);
+    syncSetInfo({ dir:'down', by:remote.updatedBy || '?', at:remote.updatedAt, localAt:Date.now(), count:rr.records.length });
+    try { window.localStorage.setItem('tdbr_gate_name', name); } catch(e) {}   // 이름만 기억 (민감하지 않음)
+    window.__tbdrReloading = true;
+    location.reload();
+  } catch (e) {
+    try { STORE.clear(); } catch(e2) {}
+    _gateMsg(_syncErr(e));
+    btn.disabled = false;
+  }
+}
+
+function gateUseLocal(){
+  if (!confirm('이 기기에 가계부를 저장해서 씁니다.\n(휴대폰 앱처럼 쓰는 방식)\n\n다른 사람도 쓰는 PC·태블릿이라면\n[취소]를 누르고 암호로 여세요.')) return;
+  try { window.localStorage.setItem(DEVICE_MODE_KEY, 'local'); } catch(e) {}
+  try { window.sessionStorage.clear(); } catch(e) {}
+  window.__tbdrReloading = true;
+  location.reload();
+}
+
+function _gateShow(){
+  var savedName = '';
+  try { savedName = window.localStorage.getItem('tdbr_gate_name') || ''; } catch(e) {}
+  var g = document.createElement('div');
+  g.id = 'tbdr-gate';
+  g.className = 'tbdr-gate';
+  g.innerHTML =
+    '<div class="tbdr-gate-box">' +
+      '<div class="tbdr-gate-title">TBDR 가계부</div>' +
+      '<div class="tbdr-gate-sub">부부 공유 암호를 입력하면 서버의 최신 가계부를 엽니다.<br>' +
+      '이 탭을 닫으면 이 기기에는 남지 않습니다.</div>' +
+      '<label class="tbdr-gate-label" for="gate-name">이름 (누가 저장했는지 표시)</label>' +
+      '<input class="tbdr-gate-input" id="gate-name" type="text" autocomplete="off" placeholder="예: 아내(PC)" value="' + escapeHTML(savedName) + '">' +
+      '<label class="tbdr-gate-label" for="gate-pass">공유 암호</label>' +
+      '<input class="tbdr-gate-input" id="gate-pass" type="password" autocomplete="off">' +
+      '<button class="tbdr-gate-open" id="gate-open" type="button">열기</button>' +
+      '<div class="tbdr-gate-msg" id="gate-msg"></div>' +
+      '<button class="tbdr-gate-local" type="button" onclick="gateUseLocal()">이 기기에 저장해서 쓰기 (휴대폰 앱)</button>' +
+    '</div>';
+  document.body.appendChild(g);
+  document.getElementById('gate-open').onclick = gateOpen;
+  document.getElementById('gate-pass').addEventListener('keydown', function(e){ if (e.key === 'Enter') gateOpen(); });
+  document.getElementById('gate-name').addEventListener('keydown', function(e){ if (e.key === 'Enter') document.getElementById('gate-pass').focus(); });
+  setTimeout(function(){ try { document.getElementById(savedName ? 'gate-pass' : 'gate-name').focus(); } catch(e){} }, 50);
+}
+
+// ── 시작 처리 ──
+if (TBDR_MODE === 'session') {
+  if (!TBDR_UNLOCKED) {
+    _gateShow();
+  } else {
+    // 헤더에 잠그기 버튼
+    (function(){
+      var hb = document.querySelector('#main-page .header-btns');
+      if (hb) {
+        var b = document.createElement('button');
+        b.className = 'nav-btn lock-btn';
+        b.title = '잠그기';
+        b.textContent = '🔒';
+        b.onclick = sessionLock;
+        hb.insertBefore(b, hb.firstChild);
+      }
+    })();
+    // 새로고침 전에 못 올린 변경이 있으면 다시 올린다 (백업 복구·합치기 직후 등)
+    if (syncIsDirty()) scheduleAutoUpload();
+    document.addEventListener('visibilitychange', function(){
+      if (document.visibilityState === 'visible') sessionRefreshIfNewer();
+    });
+    // 서버에 아직 안 올라간 변경이 있으면 탭 닫기 전에 경고
+    window.addEventListener('beforeunload', function(e){
+      if (window.__tbdrReloading) return;
+      if (syncIsDirty()) { e.preventDefault(); e.returnValue = ''; return ''; }
+    });
+  }
+}
+
 function syncStatusText(){
+  if (TBDR_MODE === 'session') {
+    var si = syncGetInfo();
+    return '💻 PC 모드 · ' + escapeHTML(syncGetName()) + '<br>바꾼 내용은 곧바로 서버에 저장됩니다.' +
+           (si ? '<br>마지막 ' + (si.dir === 'up' ? '저장' : '불러오기') + ' ' + _syncWhen(si.at) + ' (' + si.count + '건)' : '') +
+           (syncIsDirty() ? '<br>⏳ 서버에 저장 대기 중' : '');
+  }
   var fb = window.TBDR_FB;
   if (!fb || fb.loading) return '서버 연결 준비 중…';
   if (!fb.configured) return fb.error ? ('연결 실패 · ' + fb.error) : 'Firebase 설정 필요';
