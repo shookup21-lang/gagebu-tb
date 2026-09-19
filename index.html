@@ -417,6 +417,42 @@ body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color
 .tbdr-gate-msg.info { color:var(--text-sub); }
 .tbdr-gate-local { width:100%; margin-top:10px; padding:11px; border:none; background:transparent; color:var(--text-muted); font-size:12.5px; font-family:inherit; cursor:pointer; text-decoration:underline; }
 .nav-btn.lock-btn { font-size:18px; }
+
+/* ═══ 넓은 화면 레이아웃 (body.wide = 창 폭 1000px 이상, JS가 붙임) ═══
+   왼쪽: 헤더 + 달력/주/목록   오른쪽: 선택한 날짜 패널(항상 표시)
+   그 외 화면(상세·입력·설정 등): 가운데 680px                        */
+.day-amt { display:none; }
+body.wide { max-width:1180px; }
+body.wide .page:not(#main-page) { max-width:680px; margin:0 auto; border-left:1px solid var(--border); border-right:1px solid var(--border); }
+body.wide #main-page { padding-right:404px; }
+body.wide .day-panel { display:flex !important; position:fixed; top:12px; bottom:12px; left:auto;
+  right:calc(max(0px, (100vw - 1180px) / 2) + 12px); transform:none; width:380px; max-width:none; max-height:none;
+  border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); z-index:50; }
+body.wide .panel-drag, body.wide .day-panel .close-btn { display:none; }
+body.wide .panel-header { padding:16px 16px 10px; }
+body.wide .panel-list { flex:1; }
+body.wide .fab { display:none !important; }
+body.wide .tab-bar { max-width:360px; }
+body.wide .summary-grid, body.wide .balance-row { padding-left:20px; padding-right:20px; }
+body.wide .cal-nav { padding:14px 20px 8px; }
+body.wide .cal-weekdays { padding:0 14px; }
+body.wide .cal-grid { padding:0 14px 20px; gap:6px; }
+body.wide .cal-cell { min-height:96px; text-align:left; padding:8px 9px; background:var(--surface); border:1px solid var(--border); }
+body.wide .cal-cell:hover { border-color:var(--accent); }
+body.wide .cal-cell.today { border-color:var(--accent); border-width:2px; padding:7px 8px; }
+body.wide .cal-cell.selected { background:#4f8ef7; border-color:#4f8ef7; }
+body.wide .day-num { font-size:15px; margin-bottom:6px; }
+body.wide .day-count { font-size:11px; font-weight:600; color:var(--text-muted); }
+body.wide .day-dots { display:none; }
+body.wide .day-amt { display:block; font-size:12px; font-weight:700; line-height:1.4; margin-top:3px; font-variant-numeric:tabular-nums; }
+body.wide .cal-cell.selected .day-amt span,
+body.wide .cal-cell.selected .day-count { color:#fff !important; }
+body.wide .list-body, body.wide .week-body { padding:16px 20px; }
+body.wide .week-day-card:hover { border-color:var(--accent); }
+body.wide .week-day-card.selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+/* 아래에서 올라오는 시트는 PC에서 가운데 카드로 */
+body.wide .card-modal-overlay, body.wide .cselect-overlay { align-items:center; }
+body.wide .card-modal, body.wide .cselect-sheet { border-radius:20px; }
 </style>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#F5F6FA">
@@ -537,7 +573,7 @@ body.dark-theme .sync-btn.down { background:#1e293b; color:#a5b4fc; border-color
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-19_18:30';
+const APP_BUILD = '2026-09-19_17:09';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -564,6 +600,23 @@ const TBDR_MODE = (function(){
   } catch (e) { return 'local'; }
 })();
 const STORE = (TBDR_MODE === 'session') ? window.sessionStorage : window.localStorage;
+
+// ── 넓은 화면(PC·가로 태블릿) 감지: 창 폭 1000px 이상이면 body.wide ──
+// 휴대폰은 가로로 돌려도 이 폭에 닿지 않는다.
+const WIDE_QUERY = '(min-width: 1000px)';
+function isWideLayout(){ return document.body.classList.contains('wide'); }
+(function(){
+  const mq = window.matchMedia ? window.matchMedia(WIDE_QUERY) : null;
+  function apply(){ document.body.classList.toggle('wide', !!(mq && mq.matches)); }
+  apply();
+  if (!mq) return;
+  const onChange = function(){
+    apply();
+    try { if (document.getElementById('main-page').classList.contains('active')) renderMain(); } catch(e) {}
+  };
+  if (mq.addEventListener) mq.addEventListener('change', onChange);
+  else if (mq.addListener) mq.addListener(onChange);
+})();
 // session 모드에서 암호로 연 상태인가 (공유 암호가 이 탭에 들어 있으면 연 것)
 const TBDR_UNLOCKED = TBDR_MODE !== 'session' ||
   !!(function(){ try { return STORE.getItem('tdbr_sync_pass'); } catch(e) { return null; } })();
@@ -1052,7 +1105,7 @@ function handleAndroidBack(){
   
   // 2) 일자 패널이 열려 있으면 닫기
   const dayPanel = document.getElementById('day-panel');
-  if(dayPanel && dayPanel.style.display !== 'none' && dayPanel.style.display !== ''){
+  if(!isWideLayout() && dayPanel && dayPanel.style.display !== 'none' && dayPanel.style.display !== ''){
     closePanel();
     return true;
   }
@@ -1074,13 +1127,34 @@ function handleAndroidBack(){
   return true;
 }
 // 메인 렌더
+// 넓은 화면에서 선택된 날짜가 없을 때 기본으로 고를 날짜
+function wideDefaultDate(){
+  if (currentTab === 'week') {
+    const sun = new Date(today);
+    sun.setDate(sun.getDate() - sun.getDay() + weekOffset * 7);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sun); d.setDate(sun.getDate() + i);
+      if (toDateStr(d) === todayStr) return todayStr;
+    }
+    return toDateStr(sun);
+  }
+  if (currentYear === today.getFullYear() && currentMonth === today.getMonth()) return todayStr;
+  return currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-01';
+}
+
 function renderMain() {
+  if (isWideLayout() && !selectedDate) selectedDate = wideDefaultDate();
   document.getElementById('header-title').innerHTML = '<span style="color:'+getYearColor(currentYear)+'">'+currentYear+'</span>년 '+(currentMonth+1)+'월';
   const mc = document.getElementById('main-content');
   if(!mc) return;
   if(currentTab==='cal') mc.innerHTML = renderCalHTML();
   else if(currentTab==='week') mc.innerHTML = renderWeekHTML();
   else mc.innerHTML = renderListHTML();
+  // 넓은 화면: 주 탭에서도 오른쪽 패널에 보이는 날짜를 표시
+  if (isWideLayout() && selectedDate && currentTab === 'week') {
+    const wc = mc.querySelector('.week-day-card[data-date="' + selectedDate + '"]');
+    if (wc) wc.classList.add('selected');
+  }
   if(selectedDate) renderPanel(selectedDate);
   else {
     // 패널만 숨기기 (closePanel 호출하면 순환 발생)
@@ -1148,6 +1222,15 @@ function renderCalHTML() {
       if(recs.some(r=>r.expense)) h+='<div class="dot" style="background:var(--red)"></div>';
       if(recs.some(r=>r.type==='신용')) h+='<div class="dot" style="background:var(--yellow)"></div>';
       h+='</div>';
+      // 넓은 화면용 일별 금액 (패널 머리의 합계와 같은 기준)
+      const dInc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0);
+      const dExp=recs.filter(r=>r.expense&&!_excC.includes(r.cat)&&!(r.cat||'').includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+      if(dInc||dExp){
+        h+='<div class="day-amt">';
+        if(dInc) h+='<span style="color:'+(dInc>0?'var(--green)':'var(--red)')+'">'+(dInc>0?'+':'-')+fmtK(Math.abs(dInc))+'</span><br>';
+        if(dExp) h+='<span style="color:'+(dExp>0?'var(--red)':'var(--green)')+'">'+(dExp>0?'-':'+')+fmtK(Math.abs(dExp))+'</span>';
+        h+='</div>';
+      }
     }
     h+='</div>';
   }
@@ -1157,7 +1240,7 @@ function renderCalHTML() {
 function prevMonth(){if(currentMonth===0){currentYear--;currentMonth=11;}else{currentMonth--;} selectedDate=null;closePanel();renderMain();}
 function nextMonth(){if(currentMonth===11){currentYear++;currentMonth=0;}else{currentMonth++;} selectedDate=null;closePanel();renderMain();}
 function selectDateEl(el){
-  document.querySelectorAll('.cal-cell.selected').forEach(function(c){c.classList.remove('selected');});
+  document.querySelectorAll('.cal-cell.selected, .week-day-card.selected').forEach(function(c){c.classList.remove('selected');});
   el.classList.add('selected');
   selectDate(el.getAttribute('data-date'));
 }
