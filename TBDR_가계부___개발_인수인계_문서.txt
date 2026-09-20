@@ -1,0 +1,532 @@
+# TBDR 가계부 — 개발 인수인계 문서
+
+작성 기준 빌드: `2026-09-19_17:09` (index.html 6,019줄 / 약 325KB)
+
+이 문서만 읽으면 앱 구조를 파악하고 바로 수정에 들어갈 수 있도록 정리한 것입니다.
+새 세션에서는 **이 문서와 `index.html`을 함께 첨부**해 주세요.
+
+---
+
+## 1. 한 줄 요약
+
+부부가 함께 쓰는 개인용 가계부 PWA. **단일 HTML 파일** 하나에 모든 것이 들어 있고, GitHub Pages로 배포하며, 데이터는 브라우저 localStorage에 저장하고 Firebase Firestore로 부부간 동기화한다.
+
+**현재 상태: 안드로이드 PWA 설치 완료, Firebase 동기화 구현 완료, 실사용 중.**
+
+**사용 패턴: 한 명이 99%를 입력하고, 다른 한 명은 거의 보기만 한다.** 동기화 설계(수동 저장/불러오기, 통째로 덮어쓰기)는 이 패턴을 전제로 한다. 휴대폰에서는 자동 동기화를 일부러 넣지 않았다(2026-09-19 결정). **PC·태블릿은 '매번 암호로 여는 PC 모드'로 쓰고, 이 모드에서만 바꾼 내용을 곧바로 서버에 저장한다** (8-2절).
+
+---
+
+## 2. 배포 환경
+
+| 항목 | 값 |
+|---|---|
+| 배포 주소 | `https://shookup21-lang.github.io/gagebu-tb/` |
+| 저장소 | `shookup21-lang/gagebu-tb` (public, main 브랜치 루트) |
+| Firebase 프로젝트 ID | `gagebu-tb` |
+| 빌드 도구 | **없음.** 파일을 GitHub에 올리면 그게 곧 배포 |
+
+### 파일 구성 (전부 저장소 루트, 총 5개)
+
+```
+index.html          앱 전체 (HTML + CSS + JS, 약 5,390줄 / 295KB)
+manifest.json       PWA 매니페스트
+service-worker.js   오프라인 캐시 (v5, 네트워크 우선, 같은 출처+gstatic만 처리)
+icon-192.png        아이콘 (20KB, 팔레트 PNG)
+icon-512.png        아이콘 (87KB, 팔레트 PNG)
+```
+
+**index.html 하나에 모든 코드가 들어 있습니다.** 분리하지 마세요. 사용자가 GitHub 웹에서 직접 파일을 교체하는 방식으로 운영하므로 파일 수가 늘면 관리가 어려워집니다.
+
+동일 계정에 `coffee-app`, `attendance` 저장소가 있고 둘 다 같은 방식의 PWA입니다. 매니페스트 형식 등을 비교할 때 참고할 수 있는 '정상 동작하는 대조군'입니다.
+
+---
+
+## 3. index.html 내부 구조
+
+| 순서 | 내용 | 대략 위치 |
+|---|---|---|
+| 1 | `<style>` — 전체 CSS, 테마 변수 | 7 ~ 395줄 |
+| 2 | `<head>` 메타 + 매니페스트 링크 | 396 ~ 402줄 |
+| 3 | `<body>` — 페이지 div 15개 (전부 미리 존재, 활성화만 전환) | 403줄 ~ |
+| 4 | `<script>` — 메인 로직 전체 (classic) | 518 ~ 4820줄 |
+| 5 | `<script type="module">` — Firebase SDK 초기화 | 4825줄 부근 |
+| 6 | `<script>` — 백업/동기화 로직 (classic) | 4838 ~ 5390줄 |
+| 7 | `<script>` — 안드로이드 뒤로가기 연결 (classic) | 끝부분 |
+| 8 | `<script>` — 서비스워커 등록 | 맨 끝 |
+
+### 스크립트 스코프 주의사항
+
+메인 스크립트의 최상위 `let records`, `const APP_BUILD` 등은 **window 속성이 아닙니다.** (classic script의 top-level `let`/`const`는 전역 렉시컬 환경에 들어감) 다른 `<script>` 블록에서는 이름으로 그대로 접근되지만, `window.records`로는 접근되지 않습니다. 테스트 코드를 짤 때 `w.eval('records')`를 쓰세요.
+
+반면 `function foo(){}`로 선언한 것은 window 전역이므로 `onclick="foo()"`가 동작합니다.
+
+### 화면 전환 방식
+
+SPA. 모든 페이지가 `<div class="page">`로 미리 존재하고 `showPage(id)`가 `.active`를 옮깁니다. 주소(URL)는 바뀌지 않습니다.
+
+페이지 id 15개:
+`main-page` `detail-page` `form-page` `search-page` `stats-page` `month-detail-page` `annual-detail-page` `card-setting-page` `pay-method-page` `category-manager-page` `default-settings-page` `account-balance-page` `savings-loans-page` `settings-page` `backup-page`
+
+화면 HTML은 대부분 JS 문자열 연결(`h+='<div...'`)로 만들어 `innerHTML`에 넣습니다. 템플릿 엔진 없음.
+
+---
+
+## 4. 데이터 모델
+
+### 4-1. 거래 기록 (핵심)
+
+localStorage 키 `tdbr_v3`에 배열로 저장. 전역 변수 `records`가 메모리 사본.
+
+```js
+{
+  id: 1757834400123,   // Date.now() — 유일 식별자
+  date: '2026-09-14',  // YYYY-MM-DD
+  type: '일반',        // '일반' | '신용' 등
+  cat: '지출',         // 대분류 — 아래 5개 고정
+  mid: '식비',         // 중분류
+  sub: '외식',         // 소분류
+  place: '김밥천국',   // 소제목 (필수)
+  content: '점심',
+  income: null,        // 숫자 또는 null (음수 = 수입 취소)
+  expense: 9000,       // 숫자 또는 null (음수 = 환불)
+  pay: '국민카드',     // 지불수단 (계좌명 또는 카드명)
+  note: '',
+  discount: null,
+  discountPct: null,
+  memo: ''
+}
+```
+
+필수값: `date`, `cat`, `place`, 그리고 `income`/`expense` 중 하나.
+
+**대분류는 5개 고정입니다.** 사용자가 추가·삭제할 수 없습니다.
+`수입` `이체대체` `지출` `저축` `대출`
+
+**음수 금액을 지원합니다.** 지출이 음수면 환불(초록 +), 수입이 음수면 수입 취소(빨강 −)로 표시됩니다. `fmtSignedAmount()` 참고.
+
+### 4-1-1. 저장소 접근은 반드시 `STORE`로 ⚠️
+
+앱의 모든 저장소 접근은 전역 `STORE`를 통한다. 휴대폰(local 모드)에서는 `localStorage`, PC 모드에서는 `sessionStorage`다. **`localStorage`를 직접 쓰면 PC 모드에서 가계부가 PC에 남는 사고가 난다.** 예외는 민감하지 않은 기기 설정 세 가지뿐이며, 이들은 `window.localStorage`로 명시해서 쓴다: `tdbr_theme`, `tdbr_device_mode`, `tdbr_gate_name`.
+
+### 4-2. localStorage 키 전체 (9개, 백업 대상)
+
+| 키 | 내용 | 형태 |
+|---|---|---|
+| `tdbr_v3` | 거래 기록 본체 | 배열 |
+| `tdbr_v3_categories` | 분류 | `{대분류: {중분류: [소분류...]}}` |
+| `tdbr_default_categories` | 초기설정 스냅샷 | 객체 |
+| `tdbr_card_settings` | 카드 설정 | `[{card, payDay, startDay, endDay}]` |
+| `tdbr_pay_general` | 내 지갑(계좌) | 문자열 배열 |
+| `tdbr_settings` | 일반 설정 | 객체 |
+| `tdbr_savings_accounts` | 저축 | `[{name, sub, start}]` |
+| `tdbr_loans_accounts` | 대출 | `[{name, sub, start}]` |
+| `tbdr_settings_saved` | 설정 스냅샷(구버전 호환) | 객체 |
+
+**⚠️ 철자 주의:** 마지막 하나만 `tbdr_`이고 나머지는 `tdbr_`입니다. 오타지만 기존 사용자 데이터가 걸려 있어 고치지 않았습니다. 백업 코드(`BACKUP_KEYS`)는 두 철자를 모두 포함합니다.
+
+**새 키를 만들 때는 `tdbr_`를 쓰고, 반드시 `BACKUP_KEYS` 배열에도 추가하세요.** 빠뜨리면 백업·동기화에서 그 데이터만 조용히 유실됩니다.
+
+백업 대상이 아닌 기기별 키:
+`tdbr_theme` `tdbr_storage_limit` `tdbr_sync_name` `tdbr_sync_pass` `tdbr_sync_version` `tdbr_sync_info` `tdbr_sync_dirty`
+
+`tdbr_device_mode`('local'이면 암호 화면 없이 이 기기에 저장해서 씀), `tdbr_gate_name`(PC 모드 암호 화면에서 마지막으로 쓴 이름)은 항상 localStorage.
+
+`tdbr_sync_dirty`: 마지막 동기화 이후 이 기기에서 데이터가 바뀌었으면 시각(ms)이 들어 있다. `save()`와 설정 저장 함수(`_lsSet`)가 켜고, 업로드·불러오기 성공 시 지운다. `tdbr_sync_info`에는 `localAt`(이 기기에서 동기화한 시각 ms)이 추가됐다.
+
+### 4-3. 저장 함수
+
+```js
+save()   // records → localStorage. 저장 후 길이 비교로 검증하고,
+         // 실패하면 alert 경고 + false 반환. 반드시 반환값을 확인할 것.
+         // 실패 시 records를 localStorage에 실제로 저장된 상태로 되돌린다
+         // (화면에만 있고 저장은 안 된 '유령 기록' 방지). 성공 시 markLocalDirty().
+_lsSet(key, value)   // 설정류(분류·카드·지갑·저축·대출) 저장 공통. 예외 대신 경고 + false.
+```
+
+기록을 바꾸는 흐름은 모두 `if(!save()) return;` 형태다. `saveForm()`은 실패하면 입력 화면에 그대로 머물러 입력 내용을 지킨다.
+
+localStorage 용량 한계(기기별 2.5~5MB)를 이진 탐색으로 실측하는 `measureStorageLimit()`이 있고, 결과를 `tdbr_storage_limit`에 캐시합니다. 설정 → 백업과 내보내기 화면에 게이지로 표시됩니다.
+
+**용량 감각:** 기록 5,000건 ≈ 0.97MB. 1만 건 근처에서 한계가 옵니다.
+
+---
+
+## 5. 주요 기능별 함수 지도
+
+### 달력 · 메인
+`renderMain()` `renderCalHTML()` `renderWeekHTML()` `renderListHTML()` `renderPanel(date)`
+탭 3개: 월(`cal`) / 주(`week`) / 목록(`list`) — 전역 `currentTab`으로 구분.
+
+### 기록 입력
+`openAddForm()` → `showFormPage(state)` → `renderFormBody()` → `saveForm()`
+편집이면 전역 `editingId`에 id, 신규면 null. 폼 상태는 전역 `formState`.
+
+### 조회
+`showSearch()` / `doSearch()` — 텍스트 검색
+`showStats()` / `renderStats()` — 통계
+`showMonthDetail(y,m)` / `showAnnualDetail(y)` / `showRangeSummary()` — 결산
+
+### 계산 로직 (앱의 핵심, 가장 조심할 부분)
+```
+calcAccountBalances(refDate)   계좌별 잔액
+calcCardPending(card,refDate)  카드 미결제 금액
+calcCardRange(payDay,startDay,endDay,y,m)   카드 청구 기간
+calcSavingsBalances(refDate)   저축 잔액
+calcLoansBalances(refDate)     대출 잔액
+calcTotalAsset(refDate)        → {wallet, savings, total}  ← 객체 반환 주의
+calcTotalDebt(refDate)         → 숫자
+calcNetWorth(refDate)          → asset.total - debt
+calcMonthStats()
+```
+
+**카드 결제 로직이 까다롭습니다.** 카드마다 결제일(`payDay`), 집계 시작일(`startDay`), 마감일(`endDay`)이 있고, `endDay: 0`은 전월 말일, `payDay: 0`은 체크/직불카드(즉시 차감)를 뜻합니다. 잔액 계산 시 카드 거래는 일반 거래와 분리해 청구일에 연결 계좌에서 차감합니다.
+연말·윤년 경계는 테스트로 검증했습니다(아래 9장).
+
+**저축·대출 매칭은 소분류 문자열 일치로 동작합니다.** `tdbr_savings_accounts`의 `sub` 값과 기록의 `sub`가 정확히 같아야 잡힙니다. 분류 이름을 바꾸면 연결이 끊어집니다. 개선 여지가 있는 지점입니다.
+
+**미래 날짜 거래는 잔액 계산에서 제외됩니다.** (`if(r.date > refDate) return;`)
+
+### 분류 · 지갑 관리
+`showCategoryManager()` `openSubModal()` `deleteSub()` `openMidModal()`
+`showPayMethodSettings()` `showCardSetting()` `showSavingsLoansSettings()`
+삭제 전 영향도 계산: `_impactMid()` `_impactSub()` `_hasUsage()` `_impactSummary()`
+
+### 내보내기
+`exportCSV()` `exportMonthDetailCSV()` `exportAnnualDetailCSV()` `exportRangeSummaryCSV()`
+`triggerCSVImport()` / `handleCSVImport()` / `parseCSVLine()` / `csvCell()`
+
+---
+
+## 6. 백업 · 동기화
+
+### 6-1. 전체 백업 (JSON 파일)
+
+```
+_bkObject()         9개 키를 모아 {app, version, exportedAt, recordCount, data} 생성
+exportFullBackup()  파일 저장. 모바일이면 navigator.share로 공유 시트 호출
+triggerFullImport() → _bkRead(file) → 합치기 또는 덮어쓰기 선택
+_bkMerge(obj, incoming)   합치기 — 가족 공유용
+_bkOverwrite(obj)         덮어쓰기 — 복구용
+_bkMergeCats() / _bkMergeLists()   분류·지갑·카드·저축·대출 병합
+```
+
+**중복 판정 방식 (2026-09-14 수정됨 — 중요):**
+단순히 "내용이 같으면 건너뛰기"가 아니라 **내용별 개수를 세서** 판정합니다.
+
+```js
+_bkSig(r) = [date,type,cat,mid,sub,place,content,income,expense,pay].join('|')
+
+// 1) id가 같으면 확실한 중복 → 건너뛰고 해당 서명 카운트 1 감소
+// 2) id는 다르지만 내가 이미 같은 서명을 N개 갖고 있으면 → 건너뛰고 카운트 감소
+// 3) 그 외 → 추가
+```
+
+이 방식이라야 **같은 날 같은 가게에서 두 번 산 정당한 중복 2건**이 살아남으면서, **같은 파일을 두 번 불러와도** 기록이 늘지 않습니다. 예전 방식(서명 존재 여부만 체크)은 정당한 중복을 삼켰습니다. 이 로직을 건드릴 때는 두 시나리오를 모두 테스트하세요.
+
+**한계:** 합치기는 추가만 합니다. **수정·삭제는 전달되지 않습니다.** 한쪽에서 지운 기록이 다른 쪽에 남아 있으면 합칠 때 되살아납니다.
+
+### 6-2. Firebase 동기화 (주력 기능)
+
+**설계 전제: 부부가 동시에 입력하지 않는다.** 그래서 병합 없이 통째로 덮어쓰는 단순 구조입니다.
+
+```
+Firestore 컬렉션: ledgers
+문서 ID: SHA-256('tbdr-ledger:' + 공유암호) 앞 16바이트 hex
+문서 필드: { salt, iv, data, version, updatedBy, updatedAt, recordCount }
+```
+
+- `data`는 백업 JSON 전체를 **gzip 압축한 뒤** **AES-GCM 256**으로 암호화 (PBKDF2 SHA-256, 15만 회). 압축했으면 문서에 `z: 'gzip'` 필드가 붙는다. `z`가 없는 예전 문서도 그대로 읽힌다.
+- **압축이 필수인 이유:** Firestore 문서 한 개는 최대 1MiB. 압축 없이는 한글 UTF-8 + 이중 JSON 이스케이프 + base64 때문에 **기록 약 2,600건에서 업로드가 막힌다.** 압축 후 5,000건 ≈ 104KB. 업로드 전에 크기를 확인하고, 한계를 넘으면 저장 전에 안내한다.
+- 압축은 `CompressionStream`(크롬 80+)을 쓴다. 없으면 압축 없이 올린다.
+- 문서 ID 자체가 암호에서 파생되므로 **암호를 모르면 문서 위치조차 찾을 수 없습니다**
+- 평문 노출은 `updatedBy`, `updatedAt`, `recordCount`뿐
+
+**순서 뒤바뀜 방지 (중요):**
+`version`은 업로드마다 1씩 증가합니다. 기기는 마지막으로 맞춘 버전을 `tdbr_sync_version`에 갖고 있습니다. 업로드 시 서버 version이 내 것보다 크면 상대방이 먼저 저장한 것이므로 경고 후 차단합니다. (강제 덮어쓰기는 2단계 확인 후 가능)
+
+**강제 덮어쓰기 경고:** 서버 문서를 복호화해서 "서버 N건 / 내 기기 M건"과 **서버에만 있는 기록**(id 기준) 목록을 최대 5건 보여준다. 보는 분의 오래된 기기가 입력 담당의 기록을 지우는 사고를 막기 위함.
+
+**불러오기 전 경고:** 이 기기에만 있는 기록(서버에 id가 없고, id가 마지막 동기화 시각 이후인 것)을 목록으로 보여주고, 그런 기록이 없어도 `tdbr_sync_dirty`가 켜져 있으면 "수정·삭제·설정 변경이 사라진다"고 알린다. 잃을 게 있으면 2단계 확인.
+
+**버전 기록 순서:** 불러오기의 `syncSetVer`는 `_bkOverwrite`가 **성공한 뒤에** `after` 콜백으로 실행한다. `_bkOverwrite`는 9개 키를 쓰다 실패하면 원래 값으로 되돌린다.
+
+**서버 규칙이 최종 방어선:** `update`는 `version == 기존 + 1`일 때만 허용된다. 읽고 쓰는 사이에 다른 기기가 먼저 저장하면 서버가 거부하고, 앱은 "먼저 저장했을 수 있습니다" 안내를 띄운다.
+
+관련 함수:
+```
+syncUpload() / syncDownload() / openSyncSettings() / syncReady() / syncStatusText()
+_syncDocId() / _syncKey() / _syncEncrypt() / _syncDecrypt() / _syncErr()
+_syncZip() / _syncCanZip() / _syncDecryptRaw() / _syncUnpack() / _syncReadRemote()
+syncIsDirty() / syncClearDirty() / markLocalDirty() / _syncRecList()
+```
+
+**Firebase SDK는 ESM 모듈로 gstatic CDN에서 로드됩니다.** module script는 deferred라 classic script보다 늦게 실행됩니다. 그래서 `window.TBDR_FB`는 세 가지 상태를 가집니다.
+
+```js
+{ configured:false, loading:true }              // SDK 로딩 중
+{ configured:true,  load(), save() }            // 준비 완료
+{ configured:false, loading:false, error:'…' }  // 실패
+```
+
+`syncReady()`는 이 상태와 `crypto.subtle` 존재 여부(https 필수)를 함께 검사합니다. https가 아니면 암호화 API가 없어 동작하지 않습니다.
+
+**Firebase 콘솔 설정 상태 (이미 완료됨):**
+- Firestore: asia-northeast3, 프로덕션 모드
+- Authentication: 익명 로그인 사용
+- 승인된 도메인: `shookup21-lang.github.io`
+- 보안 규칙 (`firestore-rules.txt`, 2026-09-19 강화): `ledgers/{docId}`에 **get / create / update만** 허용. **list·delete 금지.** create는 `version == 1`, update는 `version == 기존 + 1`일 때만.
+  - list를 막는 이유: 허용하면 누구나(익명 로그인은 누구나 가능) 문서 ID 목록을 받아, ID(=암호의 SHA-256)를 오프라인으로 대입해 암호를 알아낼 수 있다.
+  - 공유 암호는 새로 정하거나 바꿀 때 **8자 이상**이어야 한다(기존 짧은 암호는 계속 허용).
+
+`firebaseConfig`의 apiKey가 코드에 노출되는 건 정상입니다. Firebase 웹 설정은 공개 전제이고, 실제 보호는 보안 규칙 + 클라이언트 암호화가 담당합니다.
+
+---
+
+## 7. 설정 페이지 구조
+
+`renderSettings()`가 5개 섹션을 그립니다.
+
+```
+가족 공유    상태 문구 + [↑ 서버에 저장] [↓ 불러오기] 큰 버튼 2개 + 공유 설정
+기본 설정    중분류/소분류 · 내 지갑 · 초기 설정 저장·복원
+백업 · 파일  백업과 내보내기 › (하위 페이지 backup-page)
+앱 정보      APP_BUILD 표시
+위험         전체 데이터 삭제
+```
+
+`renderBackupPage()`가 하위 페이지에 저장공간 게이지, 전체 백업(JSON), CSV를 그립니다.
+
+**섹션 div는 반드시 `h+='</div>';`로 닫으세요.** 예전 코드가 닫지 않고 다음 섹션을 열어 카드가 중첩되는 버그가 있었고 수정했습니다.
+
+---
+
+## 8. 네비게이션 (2026-09-14 추가)
+
+### 안드로이드 뒤로가기
+
+원래 `handleAndroidBack()`은 네이티브 앱(MainActivity.kt)용으로 만들어져 **PWA에서는 아무도 호출하지 않았습니다.** 그래서 뒤로가기를 누르면 앱이 그대로 종료됐습니다. 지금은 `popstate`에 연결돼 있습니다.
+
+동작 방식:
+1. 로드 시 히스토리에 '방어막' 항목을 하나 push
+2. 뒤로가기 → `popstate` 발생 → `handleAndroidBack()` 호출
+3. 처리됐으면(`true`) 방어막을 다시 push → 앱 유지
+4. 메인 화면이면(`false`) 방어막을 복구하지 않고 토스트만 표시 → **2초 안에 한 번 더 누르면 종료**
+
+`handleAndroidBack()`의 처리 순서:
+1. 열린 모달·오버레이 닫기
+2. 날짜 패널 닫기
+3. 메인이면 `false` 반환 (종료 신호)
+4. **그 외에는 화면의 `‹` 버튼을 `click()`으로 누름**
+
+4번이 핵심입니다. 페이지마다 돌아갈 곳이 다른데(카드 설정→내 지갑, 월별 상세→통계, 백업→설정), 예전에는 switch문으로 따로 관리하다가 여러 곳이 틀렸습니다. 이제 화면 버튼을 그대로 누르므로 **페이지를 추가해도 자동으로 맞습니다.** 새 페이지에는 `.page-header .back-btn`만 넣으면 됩니다.
+
+### 8-2. PC 모드 (매번 공유 암호로 열기, 2026-09-19 추가)
+
+**판정 (`TBDR_MODE`, 스크립트 맨 앞):** localStorage에 `tdbr_device_mode='local'`이 있거나, 기록(`tdbr_v3`, 빈 배열 제외)·공유 암호(`tdbr_sync_pass`)가 있으면 `'local'`. 이때 `tdbr_device_mode='local'`을 기록해 고정한다. 아무것도 없는 새 기기면 `'session'`.
+
+**session 모드 흐름:**
+1. `TBDR_UNLOCKED`가 false(이 탭에 공유 암호 없음)면 암호 화면(`#tbdr-gate`)을 띄운다.
+2. `gateOpen()`: 이름·암호 → 서버 문서 읽기 → 복호화 → 백업 키들과 이름·암호·버전을 **sessionStorage에만** 넣고 새로고침. 암호가 다르면 문서 위치가 달라 "없음"으로 나오므로 "암호가 맞지 않거나 서버에 없음"으로 안내.
+3. 열린 뒤: 헤더에 🔒 버튼, 설정의 [공유 설정] 자리에 [잠그기]. `sessionLock()`은 sessionStorage를 비우고 새로고침.
+4. **자동 저장:** `save()`/`_lsSet()` → `markLocalDirty()` → `scheduleAutoUpload()`(1.2초 모음) → `sessionAutoUpload()`. 서버 버전이 더 크면(휴대폰이 먼저 저장) 올리지 않고 안내 후 `syncDownload()`로 넘긴다(사라질 PC 입력 목록 경고가 그대로 뜬다). 올리는 중 또 바뀌면 한 번 더 올린다. 실패하면 토스트만 띄우고 다음 변경 때 재시도.
+5. **돌아오면 최신으로:** 탭이 다시 보이면 `sessionRefreshIfNewer()`가 서버 버전을 확인(30초에 한 번). PC에 안 올린 변경이 없고 메인 화면일 때만 조용히 교체한다(입력 중인 화면은 건드리지 않음).
+6. 저장 대기 중 탭을 닫으면 `beforeunload` 경고. 앱이 스스로 새로고침할 때는 `window.__tbdrReloading = true`로 경고를 건너뛴다. **새로고침하는 코드를 추가하면 이 플래그를 꼭 세울 것.**
+
+**PC 모드에서 막아 둔 것:** 전체 삭제(서버까지 비워짐), 공유 설정 변경. CSV 교체·백업 덮어쓰기는 `sessionBigChangeOK()`로 한 번 더 확인한다.
+
+**화면 폭:** 8-3절의 넓은 화면 레이아웃이 적용된다.
+
+### 8-3. 넓은 화면 레이아웃 (PC·가로 태블릿, 2026-09-19 추가)
+
+창 폭이 **1000px 이상**이면 `body.wide` 클래스가 붙고(`matchMedia`, 창 크기를 바꾸면 즉시 전환), CSS의 `body.wide ...` 규칙만으로 배치가 바뀐다. 휴대폰은 가로로 돌려도 이 폭에 닿지 않으므로 **휴대폰 화면은 한 픽셀도 바뀌지 않는다.** JS에서는 `isWideLayout()`으로 확인.
+
+- 메인: 왼쪽에 헤더+달력/주/목록(`#main-page`에 `padding-right:404px`), 오른쪽에 날짜 패널을 `position:fixed`로 **항상** 표시(`display:flex !important`로 인라인 `display:none`을 덮음). 닫기 버튼·끌기 막대·FAB는 숨김(패널의 [+ 추가] 사용).
+- 선택 날짜가 비면 `renderMain()`이 `wideDefaultDate()`로 채운다: 보고 있는 달이 이번 달이면 오늘, 아니면 1일. 주 탭은 그 주에 오늘이 있으면 오늘, 아니면 일요일.
+- 달력 칸: 넓은 화면에서만 **일별 수입·지출 금액**(`.day-amt`)이 보이고 점(`.day-dots`)은 숨긴다. 금액 기준은 패널 머리 합계와 같다(수입은 이체대체 제외, 지출은 이체대체·저축·대출 제외). 휴대폰에서는 `.day-amt`가 HTML에는 있지만 CSS로 숨겨져 있다.
+- 주 탭: 오른쪽 패널에 보이는 날짜의 카드에 `.selected` 테두리.
+- 뒤로가기: 넓은 화면에서는 패널을 '닫지' 않는다(`handleAndroidBack` 2단계 건너뜀).
+- 그 밖의 화면(상세·입력·검색·통계·설정): 가운데 680px. 아래에서 올라오는 시트(카드 설정·선택 목록)는 가운데 카드로.
+
+**검증:** 이 레이아웃은 실제 Chromium(Playwright)으로 1440×900, 1100×800, 412×860(휴대폰)을 라이트·다크 모두 캡처해서 확인했다. 컨테이너에 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`이 있으면 같은 방법을 쓸 수 있다(로컬 `python3 -m http.server`로 띄우고 `add_init_script`로 localStorage 주입).
+
+### 당겨서 새로고침 차단
+
+```css
+html, body { overscroll-behavior-y: contain; overscroll-behavior-x: none; }
+```
+
+당겨서 새로고침하면 페이지가 리로드되어 **입력 중이던 폼 내용이 날아가고 메인 화면으로 돌아갑니다.** 그래서 차단했습니다. 최신 버전은 앱을 완전히 종료 후 재실행하면 서비스워커가 자동으로 받아옵니다.
+
+---
+
+## 9. 디자인 시스템
+
+CSS 변수 기반 라이트/다크 테마. `body.light-theme` / `body.dark-theme` (`toggleTheme()`).
+
+```
+--bg --surface --card --card-danger --border
+--text --text-sub --text-muted
+--accent --accent-light --green --red --yellow --purple
+--input-bg --shadow
+```
+
+**하드코딩 색상을 쓰지 마세요.** 다크 모드에서 깨집니다. 기존 코드에 일부 하드코딩(`#4f8ef7` 등)이 남아 있는데, 손대는 김에 변수로 바꾸면 좋습니다.
+
+레이아웃은 모바일 전용. `max-width: 430px`, 세로 고정, safe-area 대응. 큰 글씨 모드는 `body.font-large`.
+
+기타 클래스: `.settings-section` `.settings-row` `.sync-card` `.sync-btn` `.tbdr-toast`
+
+---
+
+## 10. 과거에 겪은 문제와 해결 (같은 실수 반복 방지)
+
+### PWA가 설치되지 않고 바로가기만 생성됨 ★ 해결
+
+원인은 `icon-512.png`의 **PNG 데이터 손상**이었습니다. `eXIf` 청크 CRC 불일치. 파일 헤더는 멀쩡해서 `file` 명령이나 육안으로는 구분되지 않았고, GitHub 업로드 과정에서 몇 바이트가 깨진 것으로 보입니다. 크기는 같은데 MD5만 달랐습니다.
+
+안드로이드는 설치 시 구글 서버가 아이콘을 내려받아 검사하고 앱 아이콘을 만듭니다. 깨진 아이콘이면 WebAPK 생성이 실패하고 바로가기로 대체됩니다.
+
+→ 아이콘을 교체할 때는 **CRC까지 검증**하고, GitHub에서 미리보기가 뜨는지 확인하세요. 부가 청크(`eXIf`, `caBX`) 없는 순수 PNG(IHDR/PLTE/IDAT/IEND)가 안전합니다. 현재 아이콘은 256색 팔레트로 재인코딩해 87KB/20KB입니다.
+
+### 매니페스트 아이콘 선언 방식
+
+같은 파일을 `purpose: any`와 `purpose: maskable`로 4줄 중복 선언했었습니다. 지금은 2줄 `"purpose": "any maskable"`입니다. `id` 필드는 넣지 않습니다. (같은 계정의 정상 동작하는 두 앱과 동일한 형식)
+
+### 서비스워커 오프라인 대체 버그
+
+실패한 모든 요청에 `index.html`을 돌려주고 있었습니다. 아이콘·매니페스트 요청에 HTML이 반환되어 설치 검사가 깨질 수 있습니다. 지금은 `req.mode === 'navigate'`일 때만 대체합니다. (v4)
+
+### 상태 찌꺼기 버그
+
+`openAddForm()`이 `selectedRecord`를 비우지 않아, 기록 상세를 봤다가 `+추가`를 누르고 뒤로가면 **엉뚱한 기록의 상세 화면**으로 갔습니다. 전역 상태를 쓰는 코드라 비슷한 함정이 또 있을 수 있습니다. 화면 진입 함수를 만들 때 **관련 없는 전역 상태를 반드시 초기화**하세요.
+
+관련 전역: `records` `selectedDate` `selectedRecord` `detailFrom` `currentTab` `editingId` `formState` `panelSelectMode` `panelSelectedIds` `expandedCats` `lastEditedCat` `annualPageMode` `savedScrollPos`
+
+### '오늘' 날짜가 앱 실행 시점에 고정됨 ★ 해결 (2026-09-19)
+
+`today`/`todayStr`이 `const`여서, 안드로이드가 PWA를 며칠씩 살려 두면 + 버튼이 어제 날짜로 채워졌다. 지금은 `let`이고 `refreshTodayIfChanged()`가 `visibilitychange`와 1분 간격으로 갱신한다. **jsdom 테스트는 이 1분 타이머 때문에 저절로 끝나지 않으므로 마지막에 `process.exit()`를 호출할 것.**
+
+### 서비스워커가 Firestore 통신을 캐시함 ★ 해결 (v5)
+
+Firestore SDK는 GET 스트리밍 요청을 쓴다. v4는 모든 GET을 가로채 매 동기화마다 쓸모없는 응답을 캐시에 쌓았다. v5는 같은 출처와 `www.gstatic.com/firebasejs/`만 처리한다.
+
+### 합치기가 정당한 중복을 삼킴
+
+6-1 참고. 개수 기반 판정으로 수정했습니다.
+
+### 배포 확인
+
+서비스워커가 네트워크 우선이라 온라인이면 자동으로 최신이 반영됩니다. 하지만 "올렸는데 안 바뀐다"는 혼선이 반복됐으니, **파일을 수정할 때마다 `APP_BUILD` 상수를 갱신하세요.** 설정 → 앱 정보에서 확인할 수 있습니다.
+
+```js
+const APP_BUILD = '2026-09-19_17:09';   // 526줄 부근, 한국시간 YYYY-MM-DD_HH:MM
+```
+
+**빌드 시각은 반드시 실제 시계에서 가져올 것:** `TZ=Asia/Seoul date '+%Y-%m-%d_%H:%M'`. 짐작으로 적으면 "올렸는데 안 바뀐다" 확인이 오히려 헷갈린다. (2026-09-19에 18:30, 21:00처럼 미래 시각을 잘못 적은 빌드가 있었고 17:09로 바로잡았다.)
+
+```js
+```
+
+서비스워커를 수정했다면 `CACHE` 버전(`tbdr-cache-vN`)도 함께 올리세요.
+
+---
+
+## 11. 수정 작업 체크리스트
+
+1. `APP_BUILD` 갱신했는가
+2. 새 localStorage 키를 만들었다면 `BACKUP_KEYS`에 추가했는가
+3. 새 화면 진입 함수에서 관련 없는 전역 상태를 초기화했는가
+4. 새 페이지에 `.page-header .back-btn`을 넣었는가 (뒤로가기 자동 연동)
+5. 하드코딩 색상 대신 CSS 변수를 썼는가
+6. `save()` 반환값을 확인했는가 (용량 초과 시 false)
+7. 설정 섹션 div를 닫았는가
+8. 다크 모드에서 확인했는가
+9. 서비스워커를 고쳤다면 캐시 버전을 올렸는가
+10. `localStorage`를 직접 쓰지 않고 `STORE`를 썼는가 (PC 모드 유출 방지)
+11. 앱이 스스로 새로고침하는 코드를 넣었다면 `window.__tbdrReloading = true`를 먼저 세웠는가
+12. 메인 화면을 바꿨다면 넓은 화면(1000px 이상)에서도 확인했는가
+
+---
+
+## 12. 테스트 방법
+
+브라우저 없이 jsdom으로 검증할 수 있습니다. 실제로 이 방식으로 버그 3개를 찾았습니다.
+
+```js
+const {JSDOM}=require('jsdom');
+const dom=new JSDOM(html,{runScripts:'dangerously',
+  url:'https://shookup21-lang.github.io/gagebu-tb/',pretendToBeVisual:true});
+const w=dom.window;
+// crypto.subtle은 jsdom에 없으므로 주입 필요 (defineProperty로 해야 함)
+Object.defineProperty(w,'crypto',{value:require('crypto').webcrypto,configurable:true});
+// 전역 let/const 접근은 w.eval() 사용
+w.eval('records.length');
+```
+
+Firebase는 `window.TBDR_FB`를 가짜 객체로 교체하면 업로드/다운로드 왕복을 전부 테스트할 수 있습니다.
+
+```js
+const server={};
+w.TBDR_FB={configured:true,
+  load:async id=>server[id]?JSON.parse(JSON.stringify(server[id])):null,
+  save:async(id,p)=>{server[id]=JSON.parse(JSON.stringify(p));}};
+```
+
+### 최근 검증 결과 (빌드 2026-09-14_20:16)
+
+| 항목 | 결과 |
+|---|---|
+| onclick 핸들러 103개 정의 여부 | 누락 0 |
+| 함수 중복 정의 | 0 |
+| 화면 렌더 21종 | 오류 0 |
+| 뒤로가기 목적지 14개 화면 | 14/14 통과 |
+| 상태 찌꺼기 9종 | 9/9 통과 |
+| 돈 계산 11종 (연말·윤년·음수·미래거래 포함) | 11/11 통과 |
+| CSV 이스케이프 / 합치기 경계 | 통과 |
+| Firebase 동기화 왕복 (모의 서버) | 업로드·다운로드·충돌차단·오암호 전부 통과 |
+
+**jsdom 테스트 주의 (PC 모드 이후):** 아무 데이터 없이 띄우면 PC 모드 암호 화면이 뜬다. 휴대폰 동작을 시험하려면 `beforeParse`에서 `localStorage.setItem('tdbr_device_mode','local')`을 먼저 넣을 것. PC 모드 '연 상태'는 sessionStorage에 `tdbr_sync_pass` 등을 넣고 띄우면 된다.
+
+### 최근 검증 결과 (빌드 2026-09-19_17:09, 82항목 전부 통과)
+
+아래 49항목에 PC 모드 33항목 추가: 새 기기 암호 화면, 틀린/맞는 암호, **PC localStorage에 가계부·암호가 남지 않음**, 새로고침 후 유지, 자동 저장(연속 입력 묶음 포함), 닫기 경고, 휴대폰이 먼저 저장했을 때(돌아오면 조용히 최신 반영 / PC 입력은 덮어쓰지 않고 경고), 전체 삭제·공유 설정 차단, 잠그기, 기존 휴대폰은 그대로 local. PC 모드에서 주요 화면 13종 렌더 오류 0.
+
+### 이전 검증 결과 (빌드 2026-09-19_16:15, 49항목 전부 통과)
+
+모의 서버를 **실제 규칙처럼** 만들어 검증했다: create는 version 1만, update는 +1만, 1MiB 초과 거부, undefined 필드 거부. (예전 모의 서버에는 크기 제한이 없어서 1MiB 문제를 못 잡았다. 모의 서버를 쓸 때는 이 제약을 꼭 넣을 것.)
+
+| 항목 | 결과 |
+|---|---|
+| save() 실패 시 되돌림·입력 화면 보존·삭제 실패·설정 저장 실패 | 통과 |
+| 오늘 날짜 갱신 (달 이동 포함) | 통과 |
+| 5,000건 압축 업로드 (104KB) / 압축 불가 시 사전 안내 | 통과 |
+| 불러오기 전 경고 (새 기록 목록, 수정만 한 경우, 2단계 확인) | 통과 |
+| 불러오기 교체 실패 시 버전·데이터 되돌림 | 통과 |
+| 강제 덮어쓰기 건수·사라질 기록 표시 | 통과 |
+| 동시 저장 → 서버 거부 + 안내 | 통과 |
+| 압축 없는 예전 문서 불러오기 / 오암호 | 통과 |
+| 백업 복구·합치기 회귀, 이스케이프, CSV 제외 이유, 카드 검증 | 통과 |
+
+성능 (기록 5,000건 = 0.97MB 기준):
+달력 렌더 14ms · 잔액 계산 0ms · 연간 결산 38ms · 검색 4ms · 백업 생성 4ms
+
+### 자동 테스트로 잡히지 않는 영역
+
+- 눈으로 봐야 아는 것 — 다크 모드 색 깨짐, 글자 잘림, 버튼 위치
+- 실제 기기에서만 나는 것 — 키보드가 입력창 가림, 스크롤 튐, 폰트 크기
+- Firebase 실제 연결 — 모의 서버로만 검증됨
+
+---
+
+## 13. 알려진 개선 여지
+
+- **합치기가 수정·삭제를 전달하지 못함.** 기록에 `updatedAt`과 `deleted` 플래그를 추가하면 해결되지만 마이그레이션이 필요합니다.
+- **저축·대출이 소분류 문자열 일치로 매칭됨.** 분류명을 바꾸면 연결이 끊깁니다. id 기반이 안전합니다.
+- **localStorage 용량 한계.** 1만 건 근처에서 저장 실패 위험. IndexedDB 전환 고려.
+- **`tbdr_settings_saved` 철자 통일.** 마이그레이션 코드를 넣으면 정리 가능.
+- **동기화가 수동 (의도된 결정).** 자동 동기화는 사용자가 원하지 않아 넣지 않았다. 부담 없는 대안으로, 앱 실행 시 서버 version만 조회해 "새 내용 있음" 배지를 띄우는 방법이 있다. `updatedBy`/`updatedAt`은 평문이라 복호화 없이 조회 가능.
+- **서버의 옛 문서.** 공유 암호를 바꾸면 새 문서가 생기고 옛 문서는 서버에 남는다(규칙상 delete 금지). 암호화돼 있고 목록 조회도 막혀 있어 실질 위험은 낮다. 지우려면 Firebase 콘솔에서 직접.
+- **카드 이용기간이 전전월에 걸치는 카드**(예: 결제일 1일, 이용기간 전전월 18일~전월 17일)는 현재 모델로 표현할 수 없다. 저장 시 경고만 한다.
+- **UI 문자열이 JS 문자열 연결이라 가독성이 낮음.** 큰 리팩터링은 위험하지만, 새로 만드는 화면만이라도 템플릿 리터럴을 쓰면 낫습니다.
+- **당겨서 새로고침을 막아 수동 갱신 수단이 없음.** 설정에 "최신 버전 확인" 버튼을 두면 좋습니다.
