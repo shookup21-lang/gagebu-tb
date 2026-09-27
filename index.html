@@ -43,7 +43,7 @@
   .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 8px; }
   .cal-weekday { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); padding: 6px 0; }
   .cal-weekday.sun { color: var(--red); }
-  .cal-weekday.sat { color: var(--accent); }
+  .cal-weekday.sat { color: var(--sat); }
   .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 8px; gap: 3px; }
   .cal-cell { border-radius: 12px; padding: 6px 4px 8px; cursor: pointer; text-align: center; border: 1px solid transparent; min-height: 62px; transition: all 0.1s; }
   .cal-cell:active { opacity: 0.7; }
@@ -54,7 +54,7 @@
   .day-num { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
   .day-num.today-num { font-weight: 700; color: var(--accent); }
   .day-num.sun-num { color: var(--red); }
-  .day-num.sat-num { color: var(--accent); }
+  .day-num.sat-num { color: var(--sat); }
   .day-count { font-size: 12px; font-weight: 700; color: var(--accent); line-height: 1; }
   .day-dots { display: flex; justify-content: center; gap: 2px; margin-top: 3px; }
   .dot { width: 5px; height: 5px; border-radius: 50%; }
@@ -237,13 +237,13 @@
   .detail-table tr.cat-header-row td { font-weight:700 !important; font-size:13px !important; padding:12px 10px 8px !important; border-bottom:none !important; background:var(--bg) !important; }
   .detail-table tr.cat-header-row.cat-income td   { color:var(--green) !important; }
   .detail-table tr.cat-header-row.cat-expense td  { color:var(--red) !important; }
-  .detail-table tr.cat-header-row.cat-saving td   { color:var(--accent) !important; }
+  .detail-table tr.cat-header-row.cat-saving td   { color:var(--sav) !important; }
   .detail-table tr.cat-header-row.cat-loan td     { color:var(--red) !important; }
   .detail-table tr.cat-header-row.cat-trans td    { color:var(--yellow) !important; }
   .detail-table tr.cat-header-row.cat-balance td  { color:var(--text-muted) !important; }
   .income-val { color:var(--green); }
   .expense-val { color:var(--red); }
-  .saving-val { color:var(--accent); }
+  .saving-val { color:var(--sav); }
 
   .stat-block { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:14px; }
   .stat-block-title { font-size:13px; font-weight:700; color:var(--text-sub); margin-bottom:12px; display:flex; justify-content:space-between; }
@@ -279,14 +279,19 @@
   :root, body.light-theme {
     --bg: #f5f6fa; --surface: #ffffff; --card: #f0f1f8; --card-danger: #fdf2f2;
     --border: #d0d3e8; --text: #1a1d2e; --text-sub: #4a4e6a; --text-muted: #646a88;
-    --accent: #4f5fe6; --accent-light: #8b9cf8; --green: #059669; --red: #e03131;
+    /* 브랜드 (앱 아이콘: 금고 청록 + 금화 금색, 2026-09-27) */
+    --brand: #0e2d32; --brand-2: #1d3a3e; --gold: #e2c88b; --gold-deep: #9a6b22;
+    --accent: #1a5f5c;   /* 버튼·선택·링크 = 청록 (흰 바탕 대비 7.4) */
+    --sav: #4f5fe6;      /* 저축 (뜻이 있는 파랑 — 강조색과 분리) */
+    --sat: #4f5fe6;      /* 토요일 */
+    --accent-light: #8b9cf8; --green: #059669; --red: #e03131;
     --yellow: #d97706; --purple: #7c3aed; --input-bg: #ffffff; --shadow: rgba(0,0,0,0.08);
     /* 글자색 (2026-09-27 조정): 초록·빨강·노랑은 '선명함'을 우선해 한 단계 밝게 (사용자 요청).
        흰 바탕 대비: 초록 3.8, 빨강 4.5, 노랑 3.2 — 굵은 금액 글자 위주라 읽기에 무리 없음.
        바탕은 흰색 유지 (베이지·회색 바탕은 오히려 대비가 떨어짐). 그래프 막대는 밝은 전용 색 */
     --chart-inc: #10b981; --chart-exp: #ef4444;
     /* 대분류 표시 막대 (기록 줄 왼쪽) */
-    --cat-inc: #10b981; --cat-exp: #ef4444; --cat-sav: #4f5fe6; --cat-trans: #f59e0b; --cat-loan: #7c3aed;
+    --cat-inc: #10b981; --cat-exp: #ef4444; --cat-sav: var(--sav); --cat-trans: #f59e0b; --cat-loan: #7c3aed;
   }
 
   /* 설정 페이지 */
@@ -338,7 +343,7 @@
   .cat-count { font-size:12px; color:var(--text-muted); margin-left:6px; }
   .cat-arrow { color:var(--text-muted); font-size:14px; transition:transform .2s; }
   .cat-arrow.open { transform:rotate(90deg); }
-  .cat-edit-btn { background:var(--accent)22; border:none; border-radius:8px; cursor:pointer; color:var(--accent); padding:4px 8px; font-size:12px; }
+  .cat-edit-btn { background:color-mix(in srgb, var(--accent) 13%, transparent); border:none; border-radius:8px; cursor:pointer; color:var(--accent); padding:4px 8px; font-size:12px; }
   .cat-del-btn2 { background:color-mix(in srgb, var(--red) 13%, transparent); border:none; border-radius:8px; cursor:pointer; color:var(--red); padding:4px 8px; font-size:12px; }
   .sub-list { padding:0 14px 12px; display:none; }
   .sub-list.open { display:block; }
@@ -346,7 +351,7 @@
   .sub-item:last-child { border-bottom:none; }
   .sub-name { font-size:13px; color:var(--text-sub); }
   .sub-btns { display:flex; gap:4px; }
-  .sub-edit-btn { background:var(--accent)22; border:none; border-radius:8px; cursor:pointer; color:var(--accent); padding:3px 7px; font-size:12px; }
+  .sub-edit-btn { background:color-mix(in srgb, var(--accent) 13%, transparent); border:none; border-radius:8px; cursor:pointer; color:var(--accent); padding:3px 7px; font-size:12px; }
   .sub-del-btn { background:color-mix(in srgb, var(--red) 13%, transparent); border:none; border-radius:8px; cursor:pointer; color:var(--red); padding:3px 7px; font-size:12px; }
   .sub-add-btn { width:100%; margin-top:8px; padding:8px; border-radius:8px; border:1px dashed var(--border); background:transparent; color:var(--text-muted); font-size:12px; cursor:pointer; }
 
@@ -370,9 +375,9 @@
   .cselect-title { font-size:16px; font-weight:700; color:var(--text); }
   .cselect-close { background:transparent; border:none; color:var(--text-muted); font-size:22px; cursor:pointer; padding:4px; }
   .cselect-list { overflow-y:auto; padding:8px 0; }
-  .cselect-item { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; cursor:pointer; font-size:15px; color:var(--text); border-bottom:1px solid var(--border)22; }
+  .cselect-item { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; cursor:pointer; font-size:15px; color:var(--text); border-bottom:1px solid color-mix(in srgb, var(--border) 13%, transparent); }
   .cselect-item:active { background:var(--card); }
-  .cselect-item.selected { color:var(--accent); font-weight:700; background:var(--accent)11; }
+  .cselect-item.selected { color:var(--accent); font-weight:700; background:color-mix(in srgb, var(--accent) 7%, transparent); }
   .cselect-check { color:var(--accent); font-size:16px; }
 
   /* 금액 입력 */
@@ -611,6 +616,40 @@ body.wide #search-page .sr-sub { flex:1; font-size:13px; }
 body.wide #search-page .sr-amt { font-size:15px; }
 body.wide #search-page .search-help, body.wide #search-page .recent-wrap { max-width:640px; }
 
+
+/* ═══ 브랜드 테마 A안: 앱 아이콘(금고 청록 + 금화 금색)과 이어지게 (2026-09-27) ═══
+   원칙: 청록 = 주 색(머리·버튼·선택), 금색 = 포인트(청록 위 글자·테두리). 금색을 흰 바탕 글자로 쓰지 않는다.
+   수입(초록)·지출(빨강)·저축(파랑, --sav)·토요일(--sat)의 뜻 있는 색은 그대로. */
+/* 메인 헤더: 청록 띠 + 금색 연도·선택 탭 */
+.header { background:linear-gradient(160deg,var(--brand),var(--brand-2)); border-bottom:none; }
+.header-subtitle { color:var(--gold); }
+.header-title { color:#fff; }
+.header-title span { color:var(--gold) !important; }
+.header .nav-btn svg { color:#e8dcc0; }
+.header .nav-btn:active { background:rgba(255,255,255,.08); }
+.header .nav-btn.lock-btn { color:#e8dcc0; }
+.header .tab-bar { background:rgba(255,255,255,.08); }
+.header .tab-btn { color:#cfd8d6; }
+.header .tab-btn.active { background:var(--gold); color:var(--brand); }
+/* 다른 화면 제목줄 */
+.page-header { background:var(--brand); border-bottom:none; }
+.page-header .page-title { color:#fff; }
+.page-header .back-btn { color:var(--gold); }
+.page-header .csv-export-btn { background:rgba(226,200,139,.14); color:var(--gold); }
+.page-header .csv-export-btn:active { background:rgba(226,200,139,.28); }
+.page-header .copy-btn, .page-header .edit-btn, .page-header .del-btn { background:rgba(255,255,255,.10) !important; }
+.page-header .copy-btn svg, .page-header .edit-btn svg { color:var(--gold); }
+.page-header .del-btn svg { color:#ff9b9b; }
+/* + 버튼: 금고 다이얼 */
+.fab { background:var(--brand); color:var(--gold); box-shadow:0 4px 16px rgba(14,45,50,.35), inset 0 0 0 2px var(--gold); }
+/* 주요 버튼: 청록 바탕 + 금색 글자 */
+.form-save-btn, .hub-range-go, .sync-btn.up { background:var(--brand); color:var(--gold); }
+.hub-btn.purple { border-color:var(--accent); color:var(--accent); }
+/* 달력: 선택한 날 청록, 오늘은 황동색 테두리 */
+.cal-cell.selected, body.wide .cal-cell.selected { background:var(--brand); border-color:var(--brand); }
+.cal-cell.today { border-color:var(--gold-deep); border-width:2px; }
+.day-num.today-num { color:var(--brand); }
+
 /* ═══ 넓은 화면 레이아웃 (body.wide = 창 폭 1000px 이상, JS가 붙임) ═══
    왼쪽: 헤더 + 달력/주/목록   오른쪽: 선택한 날짜 패널(항상 표시)
    그 외 화면(상세·입력·설정 등): 가운데 680px                        */
@@ -632,8 +671,8 @@ body.wide .cal-weekdays { padding:0 14px; }
 body.wide .cal-grid { padding:0 14px 20px; gap:6px; }
 body.wide .cal-cell { min-height:96px; text-align:left; padding:8px 9px; background:var(--surface); border:1px solid var(--border); }
 body.wide .cal-cell:hover { border-color:var(--accent); }
-body.wide .cal-cell.today { border-color:var(--accent); border-width:2px; padding:7px 8px; }
-body.wide .cal-cell.selected { background:var(--accent); border-color:var(--accent); }
+body.wide .cal-cell.today { border-color:var(--gold-deep); border-width:2px; padding:7px 8px; }
+body.wide .cal-cell.selected { background:var(--brand); border-color:var(--brand); }
 body.wide .day-num { font-size:15px; margin-bottom:6px; }
 body.wide .day-count { font-size:12px; font-weight:600; color:var(--text-muted); }
 body.wide .day-dots { display:none; }
@@ -675,7 +714,7 @@ body.wide .detail-scroll.dragging { cursor:grabbing; }
 body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 </style>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#F5F6FA">
+<meta name="theme-color" content="#0e2d32">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -793,7 +832,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-27_23:22';
+const APP_BUILD = '2026-09-27_23:37';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -938,11 +977,11 @@ const SAVINGS_KEY = 'tdbr_savings_accounts';
 const LOANS_KEY = 'tdbr_loans_accounts';
 
 // ── 테마: 라이트 한 가지 (다크 테마는 2026-09-27 삭제) ──
-// 예전에 다크로 저장해 둔 기기도 라이트로 열리도록 저장값을 지운다.
+// 예전에 다크로 저장해 둔 기기도 라이트로 열리도록 저장값을 지운다. 상태바는 브랜드 청록(아이콘과 같은 색).
 (function(){
   try { window.localStorage.removeItem(THEME_KEY); } catch(e){}
   try {
-    if(window.AndroidFile && window.AndroidFile.setStatusBarColor) window.AndroidFile.setStatusBarColor('#f5f6fa',1);
+    if(window.AndroidFile && window.AndroidFile.setStatusBarColor) window.AndroidFile.setStatusBarColor('#0e2d32',0);
   } catch(e){}
 })();
 
@@ -1465,7 +1504,7 @@ function renderCalHTML() {
   let h='<div class="main-hero">'
     +'<div class="mh-row"><div><span>수입</span><b style="color:var(--green)">'+fmtW(totalIncome)+'</b></div>'
     +'<div><span>지출</span><b style="color:var(--red)">'+fmtW(totalExpense)+'</b></div>'
-    +'<div><span>저축</span><b style="color:var(--accent)">'+fmtW(totalSavingM)+'</b></div></div></div>';
+    +'<div><span>저축</span><b style="color:var(--sav)">'+fmtW(totalSavingM)+'</b></div></div></div>';
   h+='<div class="mh-link" onclick="showAccountBalance()"><span>잔고 현황</span><span><b id="total-balance-display">'+fmtW(calcTotalBalance())+'원</b> ›</span></div>';
   h+='<div class="cal-nav"><button class="cal-nav-btn" onclick="prevMonth()">‹</button><span class="cal-nav-title" onclick="openMonthPicker()" style="cursor:pointer;user-select:none"><span style="color:'+getYearColor(currentYear)+'">'+currentYear+'</span>.'+String(currentMonth+1).padStart(2,'0')+'</span><button class="cal-nav-btn" onclick="nextMonth()">›</button></div>';
   h+='<div class="cal-unit">달력 금액 단위: 만원</div>';
@@ -1606,7 +1645,7 @@ function renderWeekHTML(){
   dates.forEach((ds,i)=>{
     const recs=bd[ds]||[]; const isToday=ds===todayStr;
     const inc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&!['이체대체','저축','대출'].includes(r.cat)&&!r.cat.includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
-    const nc=i===0?'color:var(--red)':i===6?'color:var(--accent)':isToday?'color:var(--accent)':'';
+    const nc=i===0?'color:var(--red)':i===6?'color:var(--sat)':isToday?'color:var(--accent)':'';
     h+='<div class="week-day-card'+(isToday?' today-card':'')+'" data-date="'+ds+'" onclick="selectDateEl(this)">';
     h+='<div class="week-day-header"><span class="week-day-name" style="'+nc+'">'+dayNames[i]+' '+ds.slice(8)+'</span>';
     h+='<div style="display:flex;gap:8px;align-items:center">'+(recs.length?'<span class="week-day-badge">'+recs.length+'건</span>':'');
@@ -2377,7 +2416,7 @@ function doSearch(){
   const cell=(label,v,color)=>'<div><div class="stats-label">'+label+'</div><div class="sr-sum-val" style="color:'+color+'">'+fmtW(v)+'</div></div>';
   if(t.exp) sum+=cell('지출',t.exp,'var(--red)');
   if(t.inc) sum+=cell('수입',t.inc,'var(--green)');
-  if(t.sav) sum+=cell('저축',t.sav,'var(--accent)');
+  if(t.sav) sum+=cell('저축',t.sav,'var(--sav)');
   if(t.loan) sum+=cell('대출',t.loan,'var(--red)');
   if(t.trans) sum+=cell('이체대체',t.trans,'var(--yellow)');
   sum+='</div>';
@@ -2451,7 +2490,7 @@ function renderStats(){
   h+='<div class="hub-month-grid">';
   h+=cell('수입',fmtW(s.totalIncome),'var(--green)');
   h+=cell('지출',fmtW(s.totalExpense),'var(--red)');
-  h+=cell('저축',fmtW(s.totalSaving),'var(--accent)');
+  h+=cell('저축',fmtW(s.totalSaving),'var(--sav)');
   h+=cell('잔액',_signW(bal),bal>=0?'var(--green)':'var(--red)');
   h+='</div>';
   if(p.recs.length){
@@ -2998,7 +3037,7 @@ function showPayMethodSettings(){
   // 저축·대출 관리 (카드와 계좌 사이)
   h+='<div class="settings-section" style="margin-bottom:14px"><div class="settings-section-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><rect x="2" y="7" width="20" height="14" rx="2" fill="#dbeafe"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> 저축·대출 관리</div><div class="settings-row" onclick="showSavingsLoansSettings()"><div class="settings-row-left"><div class="settings-row-title">저축 및 대출 목록 관리</div><div class="settings-row-sub">저축 '+savCount+'개 · 대출 '+loanCount+'개 (잔고 현황 표시용)</div></div><div class="settings-row-right">›</div></div></div>';
   h+='<div class="settings-section"><div class="settings-section-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#84cc16" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" fill="#ecfccb"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4" fill="#ecfccb"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" fill="#84cc16"/></svg> 계좌 및 현금성 자산 목록</span><button onclick="openPayMethodModal(null)" style="background:var(--accent);border:none;border-radius:8px;color:#fff;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">+ 추가</button></div>';
-  payList.forEach(function(pay,idx){h+='<div class="settings-row" style="cursor:default"><div class="settings-row-left"><div class="settings-row-title">'+escapeHTML(pay)+'</div></div><div style="display:flex;gap:6px"><button onclick="openPayMethodModal('+idx+')" style="background:var(--accent)22;border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px">수정</button><button onclick="deletePayMethod('+idx+')" style="background:var(--red)22;border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px">삭제</button></div></div>';});
+  payList.forEach(function(pay,idx){h+='<div class="settings-row" style="cursor:default"><div class="settings-row-left"><div class="settings-row-title">'+escapeHTML(pay)+'</div></div><div style="display:flex;gap:6px"><button onclick="openPayMethodModal('+idx+')" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px">수정</button><button onclick="deletePayMethod('+idx+')" style="background:color-mix(in srgb, var(--red) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px">삭제</button></div></div>';});
   h+='</div>';
   document.getElementById('pay-method-body').innerHTML=h;
 }
@@ -3041,9 +3080,9 @@ function renderAccountBalance(){
     h += renderBalanceHero(netWorth, totalAsset, loansTotal);
   } else {
     // 저축/대출 미등록: 간단 안내 카드
-    h += '<div style="background:linear-gradient(135deg,#1e40af,#4f5fe6);border-radius:16px;padding:14px 16px;margin-bottom:14px;color:#fff">';
+    h += '<div style="background:linear-gradient(135deg,var(--brand-2),var(--brand));border-radius:16px;padding:14px 16px;margin-bottom:14px;color:#fff">';
     h += '<div style="font-size:12px;opacity:0.85;margin-bottom:2px">총 잔고 (내 지갑 합계)</div>';
-    h += '<div style="font-size:24px;font-weight:700;letter-spacing:-0.5px">'+(walletTotal>=0?'':'-')+fmtK(Math.abs(walletTotal))+'원</div>';
+    h += '<div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;color:var(--gold)">'+(walletTotal>=0?'':'-')+fmtK(Math.abs(walletTotal))+'원</div>';
     h += '<div style="font-size:12px;opacity:0.85;margin-top:6px">설정 › 내 지갑 설정 › 저축·대출 관리에서 저축/대출을 등록하면 순자산 현황이 표시됩니다</div>';
     h += '</div>';
   }
@@ -3069,7 +3108,7 @@ function renderAccountBalance(){
   if(savingsList.length > 0){
     h += renderCollapseGroup('savings', '저축자산',
       '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><rect x="2" y="7" width="20" height="14" rx="2" fill="#dbeafe"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
-      savingsTotal, 'var(--accent)', false,
+      savingsTotal, 'var(--sav)', false,
       renderSavingsBody(savingsList),
       '적금·예금·투자 등 별도 계좌에 모인 자산 (시작 잔액 + 거래 누적)'
     );
@@ -3100,8 +3139,8 @@ function renderAccountBalance(){
 
 // ─── HERO (텍스트 전용, 가볍게) ───
 function renderBalanceHero(netWorth, totalAsset, loansTotal){
-  const netColor = netWorth >= 0 ? '#fff' : '#fecaca';
-  let h = '<div style="background:linear-gradient(135deg,#1e40af,#4f5fe6);border-radius:16px;padding:10px 16px;margin-bottom:14px;color:#fff">';
+  const netColor = netWorth >= 0 ? 'var(--gold)' : '#fecaca';   // 금고 카드: 금색 금액
+  let h = '<div style="background:linear-gradient(135deg,var(--brand-2),var(--brand));border-radius:16px;padding:10px 16px;margin-bottom:14px;color:#fff">';
   h += '<div style="font-size:12px;opacity:0.85;margin-bottom:2px">순자산</div>';
   h += '<div style="font-size:26px;font-weight:700;letter-spacing:-0.8px;color:'+netColor+';line-height:1.15">'+(netWorth>=0?'':'-')+fmtK(Math.abs(netWorth))+'원</div>';
   h += '<div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px">';
@@ -3266,8 +3305,8 @@ function renderSavingsLoansSettings(){
       h += '<div class="settings-row-sub" style="white-space:normal;word-break:break-word">소분류 '+escapeHTML(s.sub)+' · 시작 '+fmtK(parseInt(s.start)||0)+'원</div>';
       h += '</div>';
       h += '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">';
-      h += '<button onclick="openSavingsModal('+idx+')" style="background:var(--accent)22;border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px;white-space:nowrap">수정</button>';
-      h += '<button onclick="deleteSavingsAccount('+idx+')" style="background:var(--red)22;border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px;white-space:nowrap">삭제</button>';
+      h += '<button onclick="openSavingsModal('+idx+')" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px;white-space:nowrap">수정</button>';
+      h += '<button onclick="deleteSavingsAccount('+idx+')" style="background:color-mix(in srgb, var(--red) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px;white-space:nowrap">삭제</button>';
       h += '</div></div>';
       // 하단: 현재 금액 (강조)
       h += '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px dashed var(--border)">';
@@ -3309,8 +3348,8 @@ function renderSavingsLoansSettings(){
       h += '<div class="settings-row-sub" style="white-space:normal;word-break:break-word">상환 소분류 '+escapeHTML(l.sub)+' · 시작원금 '+fmtK(start)+'원 · 상환 '+pct+'%</div>';
       h += '</div>';
       h += '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">';
-      h += '<button onclick="openLoansModal('+idx+')" style="background:var(--accent)22;border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px;white-space:nowrap">수정</button>';
-      h += '<button onclick="deleteLoansAccount('+idx+')" style="background:var(--red)22;border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px;white-space:nowrap">삭제</button>';
+      h += '<button onclick="openLoansModal('+idx+')" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:4px 10px;font-size:12px;white-space:nowrap">수정</button>';
+      h += '<button onclick="deleteLoansAccount('+idx+')" style="background:color-mix(in srgb, var(--red) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--red);padding:4px 10px;font-size:12px;white-space:nowrap">삭제</button>';
       h += '</div></div>';
       // 하단: 잔여 원금 (강조)
       const remColor = remaining <= 0 ? 'var(--text-muted)' : 'var(--red)';
@@ -3470,7 +3509,7 @@ function renderCardSetting(){
     const{startDate,endDate}=calcCardRange(s.payDay,s.startDay,s.endDay,y,m);
     const recs=records.filter(function(r){return r.type==='신용'&&r.pay===s.card&&r.date>=startDate&&r.date<=endDate&&r.expense;});
     const total=recs.reduce(function(sum,r){return sum+(r.expense||0);},0);
-    h+='<div class="card-setting-item"><div class="card-setting-header"><span class="card-name-badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><rect x="2" y="5" width="20" height="14" rx="2.5" fill="#e0f2fe"/><line x1="2" y1="10" x2="22" y2="10" stroke="#0ea5e9"/></svg> '+escapeHTML(s.card)+'</span><div style="display:flex;gap:6px"><button onclick="openCardModal('+idx+')" style="background:var(--accent)22;border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:5px 10px;font-size:12px">수정</button><button class="card-del-btn" onclick="deleteCardSetting('+idx+')">삭제</button></div></div>';
+    h+='<div class="card-setting-item"><div class="card-setting-header"><span class="card-name-badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-5px"><rect x="2" y="5" width="20" height="14" rx="2.5" fill="#e0f2fe"/><line x1="2" y1="10" x2="22" y2="10" stroke="#0ea5e9"/></svg> '+escapeHTML(s.card)+'</span><div style="display:flex;gap:6px"><button onclick="openCardModal('+idx+')" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:5px 10px;font-size:12px">수정</button><button class="card-del-btn" onclick="deleteCardSetting('+idx+')">삭제</button></div></div>';
     const isDebit = s.payDay===0;
     const accountText = escapeHTML(s.account || '(연결 안 함)');
     if(isDebit){
@@ -3486,7 +3525,7 @@ function renderCardSetting(){
   const regCards=settings.map(function(s){return s.card;});
   const unregCards=[...new Set(records.filter(function(r){return r.type==='신용'&&r.pay&&!regCards.includes(r.pay);}).map(function(r){return r.pay;}))].filter(Boolean);
   if(unregCards.length>0){
-    h+='<div style="background:var(--card-danger);border:1px solid var(--red)44;border-radius:12px;padding:14px;margin-top:8px;font-size:13px"><div style="color:var(--red);margin-bottom:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#fee2e2"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> 설정 안 된 카드</div><div style="color:var(--text-sub);margin-bottom:10px">'+unregCards.map(escapeHTML).join(', ')+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+unregCards.map(function(c){return'<button data-card="'+encodeURIComponent(c)+'" onclick="quickAddCardEl(this)" style="background:var(--accent)22;border:1px solid var(--accent);border-radius:8px;color:var(--accent);padding:5px 12px;font-size:12px;cursor:pointer">+ '+escapeHTML(c)+' 빠른추가</button>';}).join('')+'</div></div>';
+    h+='<div style="background:var(--card-danger);border:1px solid color-mix(in srgb, var(--red) 27%, transparent);border-radius:12px;padding:14px;margin-top:8px;font-size:13px"><div style="color:var(--red);margin-bottom:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#fee2e2"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> 설정 안 된 카드</div><div style="color:var(--text-sub);margin-bottom:10px">'+unregCards.map(escapeHTML).join(', ')+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+unregCards.map(function(c){return'<button data-card="'+encodeURIComponent(c)+'" onclick="quickAddCardEl(this)" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:1px solid var(--accent);border-radius:8px;color:var(--accent);padding:5px 12px;font-size:12px;cursor:pointer">+ '+escapeHTML(c)+' 빠른추가</button>';}).join('')+'</div></div>';
   }
   document.getElementById('card-setting-body').innerHTML=h;
 }
@@ -3942,9 +3981,9 @@ function showDefaultSettings(){
     +'<div style="color:'+(hasDefault?'var(--green)':'var(--text-muted)')+'"><strong style="color:var(--text)">저장됨:</strong> '+savedInfo+'</div>'
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:12px">'
-    +'<button type="button" onclick="saveAsDefault()" style="padding:16px;border-radius:16px;border:1px solid var(--accent);background:var(--accent)15;color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="#dbeafe"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 전체 설정 내폰에 저장</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">분류·지갑·저축·대출을 JSON 파일로 Downloads에 저장</div></button>'
-    +'<button type="button" onclick="resetToSavedDefault()" style="padding:16px;border-radius:16px;border:1px solid '+(hasDefault?'var(--green)':'var(--border)')+';background:'+(hasDefault?'var(--green)15':'var(--card)')+';color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:'+(hasDefault?'var(--green)':'var(--text-muted)')+'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="#d1fae5"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg> 전체 설정 내폰에서 불러오기</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">'+savedInfo+'</div></button>'
-    +'<button type="button" onclick="resetToBlank()" style="padding:16px;border-radius:16px;border:1px solid var(--red);background:var(--red)15;color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:var(--red)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="#fee2e2"/></svg> 초기화</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">대분류만 유지, 중분류·소분류·카드·계좌·저축·대출 모두 비우기</div></button>'
+    +'<button type="button" onclick="saveAsDefault()" style="padding:16px;border-radius:16px;border:1px solid var(--accent);background:color-mix(in srgb, var(--accent) 8%, transparent);color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="#dbeafe"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 전체 설정 내폰에 저장</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">분류·지갑·저축·대출을 JSON 파일로 Downloads에 저장</div></button>'
+    +'<button type="button" onclick="resetToSavedDefault()" style="padding:16px;border-radius:16px;border:1px solid '+(hasDefault?'var(--green)':'var(--border)')+';background:'+(hasDefault?'color-mix(in srgb, var(--green) 8%, transparent)':'var(--card)')+';color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:'+(hasDefault?'var(--green)':'var(--text-muted)')+'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="#d1fae5"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg> 전체 설정 내폰에서 불러오기</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">'+savedInfo+'</div></button>'
+    +'<button type="button" onclick="resetToBlank()" style="padding:16px;border-radius:16px;border:1px solid var(--red);background:color-mix(in srgb, var(--red) 8%, transparent);color:var(--text);cursor:pointer;text-align:left;width:100%"><div style="font-size:15px;font-weight:700;color:var(--red)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="#fee2e2"/></svg> 초기화</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">대분류만 유지, 중분류·소분류·카드·계좌·저축·대출 모두 비우기</div></button>'
     +'</div>';
   document.getElementById('default-settings-body').innerHTML=h;
 }
@@ -4200,11 +4239,11 @@ function statsSummaryHTML(t,prev){
   let h='<div class="stats-summary2 sum-grid">';
   h+=card('수입',fmtW(t.inc),'var(--green)',dl(t.inc,prev&&prev.inc,true));
   h+=card('지출',fmtW(t.exp),'var(--red)',dl(t.exp,prev&&prev.exp,false));
-  h+=card('저축',fmtW(t.sav),'var(--accent)',dl(t.sav,prev&&prev.sav,true));
+  h+=card('저축',fmtW(t.sav),'var(--sav)',dl(t.sav,prev&&prev.sav,true));
   h+=card('잔액 <span class="stats-label-sub">수입−(지출+저축)</span>',_signW(bal),bal>=0?'var(--green)':'var(--red)','');
   h+='</div>';
   const bits=[];
-  if(t.inc>0) bits.push('수입 대비 <b style="color:var(--red)">지출 '+_pct(t.inc,t.exp)+'%</b> · <b style="color:var(--accent)">저축 '+_pct(t.inc,t.sav)+'%</b>');
+  if(t.inc>0) bits.push('수입 대비 <b style="color:var(--red)">지출 '+_pct(t.inc,t.exp)+'%</b> · <b style="color:var(--sav)">저축 '+_pct(t.inc,t.sav)+'%</b>');
   if(t.loan) bits.push('대출 <b style="color:var(--red)">'+fmtW(t.loan)+'</b>');
   if(t.trans) bits.push('이체대체 <b style="color:var(--yellow)">'+fmtW(t.trans)+'</b>');
   if(bits.length) h+='<div class="sum-note">'+bits.join('<span class="sep">|</span>')+'</div>';
@@ -4464,7 +4503,7 @@ function renderMonthDetail(){
     sorted(s.expByMid).map(e=>({label:e[0],amt:e[1],subs:s.expByMidSub[e[0]],delta:hasPrev?deltaBadge(e[1],p.expByMid[e[0]],false):''})),
     (hasPrev?'▲▼ 지난달('+pa[1]+'월) 대비 · ':'')+'중분류를 누르면 소분류');
   // 3. 저축
-  h+=block(STAT_ICONS.sav,'저축',s.totalSaving,s.totalIncome>0?'수입의 '+_pct(s.totalIncome,s.totalSaving)+'%':'','saving-val','var(--accent)',
+  h+=block(STAT_ICONS.sav,'저축',s.totalSaving,s.totalIncome>0?'수입의 '+_pct(s.totalIncome,s.totalSaving)+'%':'','saving-val','var(--sav)',
     sorted(s.savByMid).map(e=>({label:e[0],amt:e[1],subs:s.savByMidSub[e[0]]})));
   // 4. 대출
   h+=block(STAT_ICONS.loan,'대출',s.totalLoan,'','expense-val','var(--red)',sorted(s.loanByMid).map(e=>({label:e[0],amt:e[1]})));
