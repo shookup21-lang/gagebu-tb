@@ -650,6 +650,18 @@ body.wide #search-page .search-help, body.wide #search-page .recent-wrap { max-w
 .cal-cell.today { border-color:var(--gold-deep); border-width:2px; }
 .day-num.today-num { color:var(--brand); }
 
+
+/* 달력 칸 모서리 점: 저축(파랑)·이체대체(노랑)·대출(보라). 칸 크기에 영향 없음 (2026-09-27) */
+.cal-cell { position:relative; }
+.day-flags { position:absolute; top:5px; right:3px; display:flex; flex-direction:column; gap:2px; pointer-events:none; }  /* 세로로 쌓아 두 자리 날짜와 안 겹치게 */
+.day-flags i { width:5px; height:5px; border-radius:50%; display:block; }
+.day-flags .f-sav { background:var(--sav); }
+.day-flags .f-trans { background:var(--cat-trans); }
+.day-flags .f-loan { background:var(--cat-loan); }
+.cal-cell.selected .day-flags i { box-shadow:0 0 0 1.5px #fff; }
+body.wide .day-flags { top:8px; right:8px; gap:3px; flex-direction:row; }
+body.wide .day-flags i { width:7px; height:7px; }
+
 /* ═══ 넓은 화면 레이아웃 (body.wide = 창 폭 1000px 이상, JS가 붙임) ═══
    왼쪽: 헤더 + 달력/주/목록   오른쪽: 선택한 날짜 패널(항상 표시)
    그 외 화면(상세·입력·설정 등): 가운데 680px                        */
@@ -832,7 +844,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-27_23:37';
+const APP_BUILD = '2026-09-27_23:46';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -1528,9 +1540,13 @@ function renderCalHTML() {
         if(pInc) h+='<span style="color:'+(pInc>0?'var(--green)':'var(--red)')+'">'+(pInc>0?'+':'-')+fmtShortW(Math.abs(pInc))+'</span>';
         if(pExp) h+='<span style="color:'+(pExp>0?'var(--red)':'var(--green)')+'">'+(pExp>0?'-':'+')+fmtShortW(Math.abs(pExp))+'</span>';
         h+='</div>';
-      } else {
-        h+='<div class="day-amt-m"><span class="dm-cnt">'+cnt+'건</span></div>';   // 저축·이체만 있는 날
       }
+      // 저축·이체대체·대출이 있는 날: 칸 오른쪽 위 모서리에 작은 점 (칸 크기는 그대로 — 절대 위치로 겹쳐 올림)
+      const fl=[];
+      if(recs.some(r=>r.cat==='저축')) fl.push('<i class="f-sav" title="저축"></i>');
+      if(recs.some(r=>r.cat==='이체대체')) fl.push('<i class="f-trans" title="이체대체"></i>');
+      if(recs.some(r=>r.cat==='대출')) fl.push('<i class="f-loan" title="대출"></i>');
+      if(fl.length) h+='<div class="day-flags">'+fl.join('')+'</div>';
       h+='<div class="day-count">'+cnt+'건</div><div class="day-dots">';
       if(recs.some(r=>r.income)) h+='<div class="dot" style="background:var(--green)"></div>';
       if(recs.some(r=>r.expense)) h+='<div class="dot" style="background:var(--red)"></div>';
