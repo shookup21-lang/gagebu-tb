@@ -586,6 +586,7 @@ body.wide .cal-unit { display:none; }
 /* + 버튼이 목록 마지막 기록을 가리지 않게 */
 .list-body, .week-body, #main-page .cal-grid { padding-bottom:96px !important; }
 body.wide #main-page .cal-grid { padding-bottom:20px !important; }
+body.wide .list-body, body.wide .week-body { padding-bottom:16px !important; }
 
 
 /* 입력 화면 (2026-09-27): 금액 크게, 필수 표시, 지갑 머리의 일반/카드 */
@@ -647,7 +648,8 @@ body.wide #search-page .search-help, body.wide #search-page .recent-wrap { max-w
 .hub-btn.purple { border-color:var(--accent); color:var(--accent); }
 /* 달력: 선택한 날 청록, 오늘은 황동색 테두리 */
 .cal-cell.selected, body.wide .cal-cell.selected { background:var(--brand); border-color:var(--brand); }
-.cal-cell.today { border-color:var(--gold-deep); border-width:2px; }
+.cal-cell.today { border-color:var(--gold-deep); border-width:2px; padding:5px 3px 7px; }  /* 테두리 1px 늘어난 만큼 여백을 줄여 칸 크기 유지 */
+.cal-cell.today.selected { border-color:var(--brand); }
 .day-num.today-num { color:var(--brand); }
 
 
@@ -661,6 +663,10 @@ body.wide #search-page .search-help, body.wide #search-page .recent-wrap { max-w
 .cal-cell.selected .day-flags i { box-shadow:0 0 0 1.5px #fff; }
 body.wide .day-flags { top:8px; right:8px; gap:3px; flex-direction:row; }
 body.wide .day-flags i { width:7px; height:7px; }
+
+
+.gauge-icon { vertical-align:-5px; }
+.amount-hint { font-size:12px; color:var(--text-muted); margin:-2px 0 6px; }
 
 /* ═══ 넓은 화면 레이아웃 (body.wide = 창 폭 1000px 이상, JS가 붙임) ═══
    왼쪽: 헤더 + 달력/주/목록   오른쪽: 선택한 날짜 패널(항상 표시)
@@ -844,7 +850,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-27_23:46';
+const APP_BUILD = '2026-09-27_23:57';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -1383,7 +1389,7 @@ function handleAndroidBack(){
   // 0) 입력 화면의 소제목 추천 목록, 검색 화면의 필터 칸
   const ps=document.getElementById('place-suggest');
   if(ps && ps.style.display==='block'){ hidePlaceSuggest(); return true; }
-  if(searchState && searchState.filterOpen && document.getElementById('search-page').classList.contains('active')){
+  if(searchState && searchState.filterOpen && !isWideLayout() && document.getElementById('search-page').classList.contains('active')){
     searchState.filterOpen=false; renderSearchChrome(); return true;
   }
   // 1) 열려 있는 오버레이/모달 우선 닫기
@@ -2043,8 +2049,10 @@ function renderFormBody(){
       const box=(id,label,v)=>'<div class="form-group"><label class="form-label">'+label+'</label><div class="amount-wrap">'
         +'<input class="form-input" id="'+id+'" placeholder="0" value="'+(v?numWithComma(v):'')+'" oninput="formatAmountInput(this)" inputmode="decimal">'
         +'<button type="button" class="sign-toggle-btn '+((v&&v<0)?'is-negative':'is-positive')+'" onclick="toggleAmountSign(\''+id+'\')" aria-label="부호 전환">'+((v&&v<0)?'－':'＋')+'</button></div></div>';
-      const a=(showInc?box('f-income','입금 (원)<i class="req" title="필수">*</i>',r.income):'')+(showExp?box('f-expense','출금 (원)<i class="req" title="필수">*</i>',r.expense):'');
-      return '<div class="amount-big">'+((showInc&&showExp)?'<div class="form-row2">'+a+'</div>':a)+'</div>';
+      // 필수 표시: 칸이 하나면 그 칸에 *, 둘 다 보이면 "둘 중 하나" 안내 (saveForm은 하나만 있으면 저장)
+      const both=showInc&&showExp, R=both?'':'<i class="req" title="필수">*</i>';
+      const a=(showInc?box('f-income','입금 (원)'+R,r.income):'')+(showExp?box('f-expense','출금 (원)'+R,r.expense):'');
+      return '<div class="amount-big">'+(both?'<div class="amount-hint"><i class="req">*</i> 입금·출금 중 하나는 꼭 입력</div><div class="form-row2">'+a+'</div>':a)+'</div>';
     })()}
     <div class="form-group place-wrap"><label class="form-label">소제목<i class="req" title="필수">*</i></label><input class="form-input" id="f-place" placeholder="소제목 입력 (예전 가게는 자동 추천)" value="${escapeHTML(r.place||'')}" autocomplete="off" oninput="placeSuggest(this.value)" onfocus="placeSuggest(this.value)" onblur="setTimeout(hidePlaceSuggest,150)"><div class="place-suggest" id="place-suggest"></div></div>
     <div class="form-group" style="margin-bottom:2px">
@@ -2641,7 +2649,7 @@ function renderBackupPage(){
   if (sizePercent >= 90) { barColor = 'var(--red)'; statusText = '한계 임박'; gaugeColor = '#ef4444'; }
   else if (sizePercent >= 70) { barColor = 'var(--yellow)'; statusText = '주의'; gaugeColor = '#f59e0b'; }
   // 게이지 SVG (속도계 모양, 컬러 채움)
-  const gaugeSVG = '<svg width="22" height="22" viewBox="0 0 24 24" style="vertical-align:-5px"><defs><linearGradient id="gauge-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#10b981"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs><path d="M3 17 A 9 9 0 0 1 21 17" fill="none" stroke="url(#gauge-grad)" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.8" fill="'+gaugeColor+'"/><line x1="12" y1="17" x2="12" y2="10" stroke="'+gaugeColor+'" stroke-width="2" stroke-linecap="round" transform="rotate('+needleAngle+' 12 17)"/></svg>';
+  const gaugeSVG = '<svg class="gauge-icon" width="22" height="22" viewBox="0 0 24 24"><defs><linearGradient id="gauge-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#10b981"/><stop offset="50%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs><path d="M3 17 A 9 9 0 0 1 21 17" fill="none" stroke="url(#gauge-grad)" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.8" fill="'+gaugeColor+'"/><line x1="12" y1="17" x2="12" y2="10" stroke="'+gaugeColor+'" stroke-width="2" stroke-linecap="round" transform="rotate('+needleAngle+' 12 17)"/></svg>';
   h+='<div class="settings-row" style="cursor:default;flex-direction:column;align-items:stretch;gap:10px">';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div class="settings-row-title">'+gaugeSVG+' 저장 공간 사용량</div><div style="display:flex;align-items:center;gap:10px"><div style="font-size:13px;color:var(--text-sub);font-weight:600">'+statusText+' ('+sizePercent+'%)</div><button id="btn-measure-limit" onclick="measureStorageLimit()" style="padding:5px 12px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--text-sub);font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">'+(hasMeasured?'다시 측정':'측정')+'</button></div></div>';
   h+='<div style="background:var(--card);border-radius:8px;height:8px;overflow:hidden"><div style="background:'+barColor+';height:100%;width:'+sizePercent+'%;transition:width 0.3s"></div></div>';
