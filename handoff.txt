@@ -1,6 +1,6 @@
 # TBDR 가계부 — 개발 인수인계 문서
 
-작성 기준 빌드: `2026-09-27_22:16` (index.html 6,548줄 / 약 363KB)
+작성 기준 빌드: `2026-09-27_23:00` (index.html 약 6,580줄 / 약 366KB)
 
 이 문서만 읽으면 앱 구조를 파악하고 바로 수정에 들어갈 수 있도록 정리한 것입니다.
 새 세션에서는 **이 문서와 `index.html`을 함께 첨부**해 주세요.
@@ -8,6 +8,42 @@
 ---
 
 ## 0. 최근 변경
+
+### 빌드 `2026-09-27_23:00` — 메인 화면 두 가지 되돌림·조정 (사용자 요청)
+
+- **"9월 남은 돈" 큰 글씨 삭제.** 메인 요약은 수입·지출·저축 한 줄(`.main-hero` 안의 `.mh-row`) + 잔고 현황 한 줄 링크(`.mh-link`)만. `.mh-label`/`.mh-bal` CSS는 남아 있지만 쓰지 않는다.
+- **휴대폰 달력 금액 = 만원 단위 숫자만, 단위 글자 없음.** `fmtShortW(n)`:
+  - 131,000 → `13.1`, 7,000 → `0.7`, 100 → `0.01`, 1,800,000 → `180`, 4,000,000 → `400`, 12,000,000 → `1200`
+  - 소수점은 최대 2자리(끝의 0은 지움). 정수 부분이 100 이상이면 소수점 없이 반올림(99.995만 이상도 `100`).
+  - 1~49원처럼 0.01 미만으로 반올림되는 금액은 `0.01`로 보인다(0으로 보이지 않게).
+  - 부호는 보통 하이픈 `-` / `+`. 칸이 좁아도 "-1300만"처럼 길어지지 않는다.
+  - 달력 제목 아래 오른쪽에 작은 안내 "달력 금액 단위: 만원"(`.cal-unit`, 휴대폰에서만).
+  - 넓은 화면(PC)은 그대로 원 단위 전체 금액(`.day-amt`).
+
+### 빌드 `2026-09-27_22:43` — 다크 테마 삭제 + 디자인 정리
+
+**다크 테마 삭제 (사용자 요청):** `body.dark-theme` 변수·규칙, 헤더의 달/해 버튼, `toggleTheme`/`applyTheme`/`loadTheme`를 지웠다. 앱은 라이트 한 가지. 예전에 다크로 저장한 기기도 라이트로 열리도록 시작할 때 `tdbr_theme` 저장값을 지운다. `body`의 `light-theme` 클래스와 `:root, body.light-theme` 변수 블록은 그대로 둔다(다른 CSS가 참조).
+
+**읽기 쉬움 (대비 4.5:1 이상, 최소 12px)**
+- 팔레트 변경: `--text-muted #8890b0→#646a88`, `--accent #5b6ef5→#4f5fe6`, `--green #10b981→#047857`, `--red #ef4444→#cc2020`, `--yellow #f59e0b→#b45309`, `--purple #8b5cf6→#7c3aed`. 흰 바탕·카드 바탕·페이지 바탕 모두에서 글자 대비 4.5:1 이상.
+- 그래프 막대(`--chart-inc/exp`)와 기록 줄 왼쪽 막대(`--cat-*`)는 **글자가 아니라서** 밝은 색 그대로(색각이상 검증 통과한 값).
+- 글자 크기: 12px 미만 → 12px, 반 픽셀(12.5·13.5…) → 가까운 정수 단계. 22종 → 13종. 예외: 휴대폰 달력 칸 금액 11.5px, 그래프 축 11px(칸이 좁음).
+- 측정: 전 화면(17개) 보이는 글자 765개를 실제 크로미움에서 계산 → **대비 미달 469개 → 2개**(장식용 구분선 `|`), **12px 미만 206개 → 56개**(달력 금액 예외).
+
+**색 줄이기**
+- 코드에 박혀 있던 파랑·빨강·초록·노랑·보라 hex(투명도 붙은 것 포함)를 CSS 변수로 바꿨다(투명도는 `color-mix(in srgb, var(--x) N%, transparent)`).
+- 아이콘: 글자 옆 인라인 아이콘(`svg[style*="vertical-align"]`)은 CSS 한 규칙으로 **선만, 글자색(currentColor)**으로 그린다. 원래 적힌 색·파스텔 채움은 무시된다. 설정·통계 제목 아이콘은 강조색, 위험 항목은 빨강. 헤더 통계 아이콘은 선 아이콘으로 교체. **새 아이콘을 넣을 때는 `stroke="currentColor"`로 그리면 된다.**
+- 기록 줄(메인 목록·날짜 패널·주·검색): 대분류별 배경색 → **흰 바탕 + 왼쪽 3px 대분류 막대**(`getCatBgColor`가 `var(--surface);border-left:3px solid …`를 돌려줌 — `style="background:…"` 안에 들어가는 전제). 연도별 6색 순환(`getYearColor`) 폐지 → 강조색 하나. '일반/신용' 색 글자 → 카드일 때만 작은 `카드` 표시(`.card-tag`).
+- 선택된 버튼 색 통일: 유형(일반/카드) 버튼도 강조색(예전엔 초록).
+
+**메인 화면**
+- 요약: 카드 4개 → 수입·지출·저축 한 줄(`.main-hero`) + 잔고 현황 한 줄 링크(`.mh-link`, id `total-balance-display` 유지). (이 빌드에서 넣었던 "9월 남은 돈" 큰 글씨는 23:00 빌드에서 삭제.) 0원도 "0"으로 표시(예전엔 `fmtK(0)`가 빈 글자라 "원"만 보였음).
+- 휴대폰 달력: "N건"·점 대신 **그날 금액을 짧게**(`fmtShortW`, `.day-amt-m`. 표기 규칙은 23:00 빌드에서 만원 단위 숫자만으로 바뀜). 저축·이체만 있는 날은 "N건". 넓은 화면은 기존 전체 금액(`.day-amt`). `.day-count`/`.day-dots`는 CSS로 숨김(HTML엔 남아 있음).
+- + 버튼이 목록 마지막 기록을 가리지 않게 아래 여백 96px.
+
+**입력 화면:** 순서 **금액(크게) → 소제목 → 대분류 → 중·소분류 → 지갑(일반/카드는 지갑 칸 머리) → 날짜 → 내용 → 더보기**. 필수 칸(금액·소제목·대분류·날짜)에 빨간 `*`(`.req`). `saveForm`이 읽는 입력칸 id는 그대로라 저장 로직은 변경 없음.
+
+**모서리·글자 체계:** 둥글기 16종 → 8·12·16px 세 단계(+막대용 2~4px, 원형 50%).
 
 ### 빌드 `2026-09-27_22:16` — 검색 업그레이드 + 입력·상세·카드 경고
 
@@ -122,7 +158,7 @@
 ### 파일 구성 (전부 저장소 루트, 총 5개)
 
 ```
-index.html          앱 전체 (HTML + CSS + JS, 약 6,550줄 / 363KB)
+index.html          앱 전체 (HTML + CSS + JS, 약 6,570줄 / 366KB)
 manifest.json       PWA 매니페스트
 service-worker.js   오프라인 캐시 (v5, 네트워크 우선, 같은 출처+gstatic만 처리)
 icon-192.png        아이콘 (20KB, 팔레트 PNG)
@@ -139,18 +175,18 @@ icon-512.png        아이콘 (87KB, 팔레트 PNG)
 
 | 순서 | 내용 | 대략 위치 |
 |---|---|---|
-| 1 | `<style>` — 전체 CSS, 테마 변수. 통계·결산 CSS, 검색·입력·상세 CSS는 각각 "(2026-09-27 개편)" 주석 아래 | 7 ~ 616줄 |
-| 2 | `<head>` 메타 + 매니페스트 링크 | 617 ~ 623줄 |
-| 3 | `<body>` — 페이지 div 앞부분 | 624 ~ 732줄 |
-| 4 | `<script>` — 메인 로직 전체 (classic). `APP_BUILD`(737), `TBDR_MODE`(751), `STORE`(763), `handleAndroidBack`(1283), `renderDetailBody`(1745), `renderFormBody`(1906), **입력 화면 도우미**(1980~), **검색**(2088~), `renderStats`(2375), **통계·결산 공통 도우미**(4113~), `renderMonthDetail`(4355), `renderAnnualDetail`(4431), `renderRangeSummary`(4484) | 733 ~ 5323줄 |
-| 5 | `<body>` 계속 — 나머지 페이지 div와 정적 모달(`sl-modal` `card-modal` `sub-modal`) | 5324 ~ 5512줄 |
-| 6 | `<script>` — 전체 백업(JSON) 로직, `BACKUP_KEYS` (classic) | 5513 ~ 5810줄 |
-| 7 | `<script type="module">` — Firebase SDK 초기화 | 5815 ~ 5863줄 |
-| 8 | `<script>` — 서버 동기화 + PC 모드 암호 화면 (classic) | 5865 ~ 6490줄 |
-| 9 | `<script>` — 안드로이드 뒤로가기 연결 (classic) | 6492 ~ 6537줄 |
-| 10 | `<script>` — 서비스워커 등록 | 6539 ~ 6546줄 |
+| 1 | `<style>` — 전체 CSS, 테마 변수. 뒤쪽에 "(2026-09-27 …)" 주석 단위로 통계·결산 / 검색·입력·상세 / 아이콘 / 메인 요약·달력·기록 줄 / 입력 화면 CSS | 7 ~ 652줄 |
+| 2 | `<head>` 메타 + 매니페스트 링크 | 653 ~ 659줄 |
+| 3 | `<body>` — 페이지 div 앞부분 | 660 ~ 767줄 |
+| 4 | `<script>` — 메인 로직 전체 (classic). `APP_BUILD`(772), `TBDR_MODE`(786), `STORE`(798), `handleAndroidBack`(1301), `renderDetailBody`(1779), `renderFormBody`(1940), 입력 화면 도우미(2007~), 검색(2115~), `renderStats`(2402), 통계·결산 공통 도우미(4140~), `renderMonthDetail`(4382), `renderAnnualDetail`(4458), `renderRangeSummary`(4511) | 768 ~ 5347줄 |
+| 5 | `<body>` 계속 — 나머지 페이지 div와 정적 모달 | 5348 ~ 5536줄 |
+| 6 | `<script>` — 전체 백업(JSON) 로직, `BACKUP_KEYS` (classic) | 5537 ~ 5834줄 |
+| 7 | `<script type="module">` — Firebase SDK 초기화 | 5839 ~ 5887줄 |
+| 8 | `<script>` — 서버 동기화 + PC 모드 암호 화면 (classic) | 5889 ~ 6514줄 |
+| 9 | `<script>` — 안드로이드 뒤로가기 연결 (classic) | 6516 ~ 6561줄 |
+| 10 | `<script>` — 서비스워커 등록 | 6563 ~ 6570줄 |
 
-줄 번호는 빌드 `2026-09-27_22:16` 기준이다. 코드를 고치면 밀리므로 `grep -n "<script\|</script>" index.html`로 다시 확인할 것.
+줄 번호는 빌드 `2026-09-27_22:43` 기준이다. 코드를 고치면 밀리므로 `grep -n "<script\|</script>" index.html`로 다시 확인할 것.
 
 ### 스크립트 스코프 주의사항
 
@@ -204,7 +240,7 @@ localStorage 키 `tdbr_v3`에 배열로 저장. 전역 변수 `records`가 메�
 
 ### 4-1-1. 저장소 접근은 반드시 `STORE`로 ⚠️
 
-앱의 모든 저장소 접근은 전역 `STORE`를 통한다. 휴대폰(local 모드)에서는 `localStorage`, PC 모드에서는 `sessionStorage`다. **`localStorage`를 직접 쓰면 PC 모드에서 가계부가 PC에 남는 사고가 난다.** 예외는 민감하지 않은 기기 설정 세 가지뿐이며, 이들은 `window.localStorage`로 명시해서 쓴다: `tdbr_theme`, `tdbr_device_mode`, `tdbr_gate_name`.
+앱의 모든 저장소 접근은 전역 `STORE`를 통한다. 휴대폰(local 모드)에서는 `localStorage`, PC 모드에서는 `sessionStorage`다. **`localStorage`를 직접 쓰면 PC 모드에서 가계부가 PC에 남는 사고가 난다.** 예외는 민감하지 않은 기기 설정 두 가지뿐이며, 이들은 `window.localStorage`로 명시해서 쓴다: `tdbr_device_mode`, `tdbr_gate_name`. (`tdbr_theme`는 다크 테마 삭제로 더 이상 쓰지 않고, 시작할 때 지운다.)
 
 ### 4-2. localStorage 키 전체 (9개, 백업 대상)
 
@@ -225,7 +261,7 @@ localStorage 키 `tdbr_v3`에 배열로 저장. 전역 변수 `records`가 메�
 **새 키를 만들 때는 `tdbr_`를 쓰고, 반드시 `BACKUP_KEYS` 배열에도 추가하세요.** 빠뜨리면 백업·동기화에서 그 데이터만 조용히 유실됩니다.
 
 백업 대상이 아닌 기기별 키:
-`tdbr_theme` `tdbr_storage_limit` `tdbr_sync_name` `tdbr_sync_pass` `tdbr_sync_version` `tdbr_sync_info` `tdbr_sync_dirty` `tdbr_search_recent`(최근 검색어 8개, `STORE`에 저장 → PC 모드에서는 탭을 닫거나 잠그면 사라짐)
+`tdbr_storage_limit` `tdbr_sync_name` `tdbr_sync_pass` `tdbr_sync_version` `tdbr_sync_info` `tdbr_sync_dirty` `tdbr_search_recent`(최근 검색어 8개, `STORE`에 저장 → PC 모드에서는 탭을 닫거나 잠그면 사라짐)
 
 `tdbr_device_mode`('local'이면 암호 화면 없이 이 기기에 저장해서 씀), `tdbr_gate_name`(PC 모드 암호 화면에서 마지막으로 쓴 이름)은 항상 localStorage.
 
@@ -310,7 +346,7 @@ renderRangeSummary(s,e)    범위 종합결산. rangeStartDate/rangeEndDate (CSV
 
 - **md**는 달별 `calcMonthStats` 결과 배열(각 원소에 `y`, `m`, `key`가 붙음). 표·그래프·지출 상세 모두 이것만 보고 그린다. 새 집계를 넣을 때도 md에서 계산할 것.
 - **월평균 기준:** 연간은 `annualAvgMonths`, 범위는 환산 개월 수(포함 일수 ÷ 그 달 일수의 합, 범위 전체 기준). 월별 CSV·범위 CSV에는 월평균 열이 없다.
-- **그래프:** 폭은 차트 칸의 실제 폭(`ResizeObserver` 하나를 새 차트로 옮겨 달며 씀). 색은 `--chart-inc` / `--chart-exp`(라이트 `#10b981`/`#ef4444`, 다크 `#059669`/`#ef4444`) — 색각이상 검증 스크립트로 라이트·다크 모두 통과한 값. 색만으로 구분하지 않도록 범례 + 말풍선 + 아래 표가 있다. 막대를 누르면 말풍선, 그래프 바깥을 누르면 닫힘.
+- **그래프:** 폭은 차트 칸의 실제 폭(`ResizeObserver` 하나를 새 차트로 옮겨 달며 씀). 색은 `--chart-inc` / `--chart-exp`(`#10b981`/`#ef4444`) — 색각이상 검증 스크립트로 통과한 값(글자용 `--green`/`--red`보다 밝다). 색만으로 구분하지 않도록 범례 + 말풍선 + 아래 표가 있다. 막대를 누르면 말풍선, 그래프 바깥을 누르면 닫힘.
 - **onclick 안의 분류명**은 `_encId()`(encodeURIComponent + `'`→`%27`)로 넣고, 화면 글자는 `escapeHTML()`로. 분류명에 `'` `<`가 있어도 깨지지 않는다(테스트함).
 - 월별 현황 카드 대금은 `getCardBillForMonth(y,m)` — **기록 날짜가 아니라 카드 이용기간 기준**이라 위 지출 합계와 기간이 다르다.
 
@@ -511,7 +547,7 @@ syncIsDirty() / syncClearDirty() / markLocalDirty() / _syncRecList()
 - 뒤로가기: 넓은 화면에서는 패널을 '닫지' 않는다(`handleAndroidBack` 2단계 건너뜀).
 - 그 밖의 화면(상세·입력·검색·통계·설정): 가운데 680px. 아래에서 올라오는 시트(카드 설정·선택 목록)는 가운데 카드로.
 
-**검증:** 이 레이아웃은 실제 Chromium(Playwright)으로 1440×900, 1100×800, 412×860(휴대폰)을 라이트·다크 모두 캡처해서 확인했다. 컨테이너에 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`이 있으면 같은 방법을 쓸 수 있다(로컬 `python3 -m http.server`로 띄우고 `add_init_script`로 localStorage 주입).
+**검증:** 이 레이아웃은 실제 Chromium(Playwright)으로 1440×900, 1100×800, 412×860(휴대폰)을 캡처해서 확인했다. 컨테이너에 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`이 있으면 같은 방법을 쓸 수 있다(로컬 `python3 -m http.server`로 띄우고 `add_init_script`로 localStorage 주입).
 
 ### 8-4. PC에서 연간·범위 결산 표 (2026-09-27 추가)
 
@@ -541,18 +577,26 @@ html, body { overscroll-behavior-y: contain; overscroll-behavior-x: none; }
 
 ---
 
-## 9. 디자인 시스템
+## 9. 디자인 시스템 (2026-09-27 정리)
 
-CSS 변수 기반 라이트/다크 테마. `body.light-theme` / `body.dark-theme` (`toggleTheme()`).
+**라이트 테마 한 가지.** 다크 테마는 사용자 요청으로 삭제했다. 다시 만들 생각이 없다면 `body.dark-theme` 규칙을 새로 쓰지 말 것.
 
 ```
---bg --surface --card --card-danger --border
---text --text-sub --text-muted
---accent --accent-light --green --red --yellow --purple
+--bg #f5f6fa  --surface #fff  --card #f0f1f8  --card-danger  --border #d0d3e8
+--text #1a1d2e  --text-sub #4a4e6a  --text-muted #646a88
+--accent #4f5fe6  --green #047857  --red #cc2020  --yellow #b45309  --purple #7c3aed   ← 모두 글자 대비 4.5:1 이상
+--chart-inc #10b981  --chart-exp #ef4444          ← 그래프 막대 전용 (글자에 쓰지 말 것)
+--cat-inc/-exp/-sav/-trans/-loan                  ← 기록 줄 왼쪽 막대 전용
 --input-bg --shadow
 ```
 
-**하드코딩 색상을 쓰지 마세요.** 다크 모드에서 깨집니다. 기존 코드에 일부 하드코딩(`#4f8ef7` 등)이 남아 있는데, 손대는 김에 변수로 바꾸면 좋습니다.
+**규칙**
+- **색은 변수로.** 옅은 배경이 필요하면 `color-mix(in srgb, var(--accent) 13%, transparent)`.
+- **글자 12px 이상**, 크기는 12·13·14·15·16·18·20·22·24·26·28 중에서. 반 픽셀 금지. (예외: 휴대폰 달력 금액 11.5, 그래프 축 11)
+- **둥글기는 8 · 12 · 16px** (작은 막대 2~4px, 원 50%).
+- **아이콘은 선 스타일**: `stroke="currentColor"` + `style="vertical-align:…"`. 인라인 아이콘은 CSS가 채움을 지우고 글자색으로 그린다(9장 아이콘 규칙 CSS 참고). 색 채움 아이콘이 필요하면 `style`에 vertical-align을 넣지 말 것.
+- **기록 줄은 흰 바탕 + 왼쪽 대분류 막대.** 금액만 색. 새 목록을 만들 때 `getCatBgColor(cat)`을 `style="background:…"`에 넣으면 같은 모양이 된다.
+- **대비는 측정으로 확인**: 12장 '대비 측정' 스크립트.
 
 기본 레이아웃은 모바일 기준. `max-width: 430px`, 세로 고정, safe-area 대응. 창 폭 1000px 이상에서는 `body.wide` 넓은 화면 레이아웃(8-3절)이 적용된다. 큰 글씨 모드는 `body.font-large`.
 
@@ -624,7 +668,7 @@ Firestore SDK는 GET 스트리밍 요청을 쓴다. v4는 모든 GET을 가로�
 서비스워커가 네트워크 우선이라 온라인이면 자동으로 최신이 반영됩니다. 하지만 "올렸는데 안 바뀐다"는 혼선이 반복됐으니, **파일을 수정할 때마다 `APP_BUILD` 상수를 갱신하세요.** 설정 → 앱 정보에서 확인할 수 있습니다.
 
 ```js
-const APP_BUILD = '2026-09-27_22:16';   // 737줄 부근, 한국시간 YYYY-MM-DD_HH:MM
+const APP_BUILD = '2026-09-27_23:00';   // 774줄 부근, 한국시간 YYYY-MM-DD_HH:MM
 ```
 
 **빌드 시각은 반드시 실제 시계에서 가져올 것:** `TZ=Asia/Seoul date '+%Y-%m-%d_%H:%M'`. 짐작으로 적으면 "올렸는데 안 바뀐다" 확인이 오히려 헷갈린다. (2026-09-19에 18:30, 21:00처럼 미래 시각을 잘못 적은 빌드가 있었고 17:09로 바로잡았다.)
@@ -642,7 +686,7 @@ const APP_BUILD = '2026-09-27_22:16';   // 737줄 부근, 한국시간 YYYY-MM-D
 5. 하드코딩 색상 대신 CSS 변수를 썼는가
 6. `save()` 반환값을 확인했는가 (용량 초과 시 false)
 7. 설정 섹션 div를 닫았는가
-8. 다크 모드에서 확인했는가
+8. 색은 변수로, 글자는 12px 이상·대비 4.5:1 이상인가 (9장 규칙)
 9. 서비스워커를 고쳤다면 캐시 버전을 올렸는가
 10. `localStorage`를 직접 쓰지 않고 `STORE`를 썼는가 (PC 모드 유출 방지)
 11. 앱이 스스로 새로고침하는 코드를 넣었다면 `window.__tbdrReloading = true`를 먼저 세웠는가
@@ -680,7 +724,19 @@ w.TBDR_FB={configured:true,
   save:async(id,p)=>{server[id]=JSON.parse(JSON.stringify(p));}};
 ```
 
-### 최근 검증 결과 (빌드 2026-09-27_22:16) — 시뮬레이션 110항목 전부 통과
+### 최근 검증 결과 (빌드 2026-09-27_22:43) — 디자인 정리
+
+| 항목 | 결과 |
+|---|---|
+| `sim.js` 110항목 (통계·검색·입력·상세·경고·돈 계산 회귀·동기화·PC 모드·성능) | 전부 통과 — 입력 화면 순서를 바꿔도 저장 동작 동일 |
+| 이전 버그 4개 회귀(CSV 소분류, 상세 제목, 소분류 모달 뒤로가기, 설정 div 균형) | 통과 |
+| 다크 저장값이 있던 기기 | 라이트로 열리고 `tdbr_theme` 삭제됨 |
+| 글자 대비·크기 측정 (17개 화면, 글자 765개) | 대비 4.5 미만 469 → 2(장식 구분선), 12px 미만 206 → 56(달력 금액 예외) |
+| 크로미움 화면 확인 | 휴대폰 17개 화면 + PC 메인 + PC 모드 암호 화면 |
+
+**대비 측정 방법:** Playwright로 각 화면을 띄운 뒤, 보이는 모든 글자 요소의 `getComputedStyle(color)`와 조상 중 처음 나오는 불투명 배경색으로 WCAG 대비를 계산한다. 그라데이션 배경은 못 읽으므로(잔고 현황 상단) 따로 확인했다(흰 글자 / `#1e40af→#4f5fe6`, 양 끝 모두 5:1 이상).
+
+### 이전 검증 결과 (빌드 2026-09-27_22:16) — 시뮬레이션 110항목 전부 통과
 
 `sim.js`에 검색·입력·상세·카드 경고 51항목을 더했다(`node sim.js 새index.html 이전index.html`). 테스트 데이터 소제목에 쿠팡·이마트·스타벅스·GS25를 섞었다.
 
@@ -696,7 +752,7 @@ w.TBDR_FB={configured:true,
 | 상세·경고 | 빈 항목 숨김·할인 합침·메모 줄바꿈, 연결 계좌 있음/없음/지갑에 없는 이름, 잔고 화면 경고, 초기 설정 제목 | 통과 |
 | 기존 59항목 | 통계·결산, 돈 계산 회귀(이전 빌드와 동일), 화면 렌더(휴대폰·PC 모드), 동기화 왕복, 1만 건 성능 | 통과 |
 
-**실제 크로미움 화면(412px, 라이트·다크):** 검색 첫 화면(사용법·최근 검색어), 결과(요약·월별 소계·강조), 필터 칸, 초성+금액 검색, 소제목 추천, 추천 선택 후 입력 화면, 상세, 카드 경고, 잔고 경고. 통계·연간 결산 폭 회귀 없음.
+**실제 크로미움 화면(412px):** 검색 첫 화면(사용법·최근 검색어), 결과(요약·월별 소계·강조), 필터 칸, 초성+금액 검색, 소제목 추천, 추천 선택 후 입력 화면, 상세, 카드 경고, 잔고 경고. 통계·연간 결산 폭 회귀 없음.
 
 **독립 리뷰:** 별도 에이전트가 이전/새 버전을 jsdom으로 대조 → 확정 2건·기타 8건 지적, 모두 수정하고 재발 방지 테스트(R1~R6) 추가.
 
@@ -723,7 +779,7 @@ w.TBDR_FB={configured:true,
 | 동기화 | 모의 서버(실제 규칙: v1 생성, +1 갱신, 1MiB) 업로드 → 다른 기기 불러오기 → 결산 숫자 동일 | 통과 |
 | 성능 | 기록 1만 건: 첫 화면·월별·연간·3년 범위 모두 1초 이내 | 통과 |
 
-**실제 크로미움 화면:** 412px 휴대폰, 1440px PC, 라이트·다크 — 첫 화면·월별(소분류 펼침)·연간(그래프 말풍선)·범위를 캡처해 눈으로 확인. 연간 표 가로 넘침: 1920/1440/1280/1100px 0, 잘린 칸 0. 1000px + 14개월 범위에서 끌어서 넘기기 동작. 이전 빌드 회귀(버그 4개 수정분) 통과.
+**실제 크로미움 화면:** 412px 휴대폰, 1440px PC — 첫 화면·월별(소분류 펼침)·연간(그래프 말풍선)·범위를 캡처해 눈으로 확인. 연간 표 가로 넘침: 1920/1440/1280/1100px 0, 잘린 칸 0. 1000px + 14개월 범위에서 끌어서 넘기기 동작. 이전 빌드 회귀(버그 4개 수정분) 통과.
 
 **독립 리뷰:** 코드를 보지 않은 별도 에이전트가 이전/새 버전을 jsdom으로 대조 검토 → 7건 지적, 모두 수정(0장).
 
@@ -744,7 +800,6 @@ w.TBDR_FB={configured:true,
 | 연간 결산 표 (실제 Chromium) 1920·1440·1280·1100px | 가로 넘침 0, 잘린 칸 0, 안내 숨김 |
 | 1000px + 14개월 범위 | 넘침 → 안내 표시, 마우스 300px 끌기 → scrollLeft 255 (sticky 항목 열 유지) |
 | 휴대폰 412px 연간 결산 | 수정 전과 스크린샷 픽셀 동일 |
-| 다크 모드 1440px | 색 깨짐 없음 (눈으로 확인) |
 | 직전 빌드의 버그 4개 회귀 테스트 | 전부 통과 |
 
 Playwright 스크립트 요령: `python3 -m http.server`로 띄우고 `add_init_script`로 `tdbr_device_mode='local'`과 `tdbr_v3`를 넣은 뒤, `page.evaluate("selectedAnnualYear=2026;showPage('annual-detail-page');renderAnnualDetail()")`. 넘침 판정은 `.detail-scroll`의 `scrollWidth > clientWidth`, 잘린 칸은 각 셀 `scrollWidth > clientWidth`. 크로미움 경로는 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
@@ -805,7 +860,7 @@ Playwright 스크립트 요령: `python3 -m http.server`로 띄우고 `add_init_
 
 ### 자동 테스트로 잡히지 않는 영역
 
-- 눈으로 봐야 아는 것 — 다크 모드 색 깨짐, 글자 잘림, 버튼 위치
+- 눈으로 봐야 아는 것 — 글자 잘림, 버튼 위치, 전체 인상
 - 실제 기기에서만 나는 것 — 키보드가 입력창 가림, 스크롤 튐, 폰트 크기
 - Firebase 실제 연결 — 모의 서버로만 검증됨
 
