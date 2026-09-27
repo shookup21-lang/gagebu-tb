@@ -591,6 +591,26 @@ body.wide #main-page .cal-grid { padding-bottom:20px !important; }
 .form-label-row .form-label { margin-bottom:0; }
 .select-btn-wrap.sm .type-btn { padding:4px 12px; font-size:12px; }
 
+
+/* 검색: 넓은 화면(PC)에서는 연간 결산처럼 넓게 — 왼쪽 필터·합계, 오른쪽 결과 (2026-09-27) */
+body.wide:has(#search-page.active) { max-width:none; }
+body.wide .page.active#search-page { max-width:1240px; }  /* 아래 .page:not(#main-page){680px}보다 우선 */
+body.wide #search-page .search-body { display:grid; grid-template-columns:340px minmax(0,1fr); grid-template-rows:auto auto 1fr; column-gap:20px; align-items:start; padding:20px 24px; }
+body.wide #search-page .search-input-wrap { grid-column:1 / -1; }
+body.wide #search-page #search-filters { grid-column:1; grid-row:2; }
+body.wide #search-page #search-count { grid-column:1; grid-row:3; position:sticky; top:84px; }
+body.wide #search-page #search-results { grid-column:2; grid-row:2 / span 2; min-width:0; }
+body.wide #search-page .sf-toggle { display:none; }
+body.wide #search-page .sf-bar { margin:0 0 10px; justify-content:flex-end; }
+body.wide #search-page .sr-row { padding:9px 14px; }
+body.wide #search-page .sr-date { flex-basis:84px; white-space:nowrap; }
+body.wide #search-page .sr-card { display:inline; margin-left:6px; }
+body.wide #search-page .sr-main { display:flex; align-items:baseline; gap:14px; }
+body.wide #search-page .sr-place { flex:0 0 200px; }
+body.wide #search-page .sr-sub { flex:1; font-size:13px; }
+body.wide #search-page .sr-amt { font-size:15px; }
+body.wide #search-page .search-help, body.wide #search-page .recent-wrap { max-width:640px; }
+
 /* ═══ 넓은 화면 레이아웃 (body.wide = 창 폭 1000px 이상, JS가 붙임) ═══
    왼쪽: 헤더 + 달력/주/목록   오른쪽: 선택한 날짜 패널(항상 표시)
    그 외 화면(상세·입력·설정 등): 가운데 680px                        */
@@ -773,7 +793,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-27_23:19';
+const APP_BUILD = '2026-09-27_23:22';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -813,6 +833,7 @@ function isWideLayout(){ return document.body.classList.contains('wide'); }
   const onChange = function(){
     apply();
     try { if (document.getElementById('main-page').classList.contains('active')) renderMain(); } catch(e) {}
+    try { if (document.getElementById('search-page').classList.contains('active')) renderSearchChrome(); } catch(e) {}
     try { updateScrollHints(); } catch(e) {}
   };
   if (mq.addEventListener) mq.addEventListener('change', onChange);
@@ -2240,7 +2261,8 @@ function renderSearchChrome(){
   h+='<button type="button" class="sf-toggle'+(s.filterOpen?' open':'')+'" onclick="searchState.filterOpen=!searchState.filterOpen;renderSearchChrome()">필터'+(_searchFilterCount()?' <b>'+_searchFilterCount()+'</b>':'')+' <span class="sf-caret">▾</span></button>';
   h+='<div class="sf-sort">'+chip(s.sort==='date','최신순',"setSearchOpt('sort','date')")+chip(s.sort==='amount','금액순',"setSearchOpt('sort','amount')")+'</div>';
   h+='</div>';
-  if(s.filterOpen){
+  // 넓은 화면(PC)에서는 필터 칸을 왼쪽에 늘 펼쳐 둔다
+  if(s.filterOpen||isWideLayout()){
     h+='<div class="sf-panel">';
     h+='<div class="sf-label">기간</div><div class="sf-row">';
     [['all','전체'],['this','이번 달'],['prev','지난달'],['3m','최근 3개월'],['year','올해'],['lastyear','작년'],['custom','직접']].forEach(function(p){ h+=chip(s.period===p[0],p[1],"setSearchOpt('period','"+p[0]+"')"); });
