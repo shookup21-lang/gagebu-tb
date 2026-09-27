@@ -279,9 +279,11 @@
   :root, body.light-theme {
     --bg: #f5f6fa; --surface: #ffffff; --card: #f0f1f8; --card-danger: #fdf2f2;
     --border: #d0d3e8; --text: #1a1d2e; --text-sub: #4a4e6a; --text-muted: #646a88;
-    --accent: #4f5fe6; --accent-light: #8b9cf8; --green: #047857; --red: #cc2020;
-    --yellow: #b45309; --purple: #7c3aed; --input-bg: #ffffff; --shadow: rgba(0,0,0,0.08);
-    /* 위 색은 흰 바탕·카드 바탕에서 글자 대비 4.5:1 이상 (2026-09-27). 그래프 막대는 밝은 전용 색 */
+    --accent: #4f5fe6; --accent-light: #8b9cf8; --green: #059669; --red: #e03131;
+    --yellow: #d97706; --purple: #7c3aed; --input-bg: #ffffff; --shadow: rgba(0,0,0,0.08);
+    /* 글자색 (2026-09-27 조정): 초록·빨강·노랑은 '선명함'을 우선해 한 단계 밝게 (사용자 요청).
+       흰 바탕 대비: 초록 3.8, 빨강 4.5, 노랑 3.2 — 굵은 금액 글자 위주라 읽기에 무리 없음.
+       바탕은 흰색 유지 (베이지·회색 바탕은 오히려 대비가 떨어짐). 그래프 막대는 밝은 전용 색 */
     --chart-inc: #10b981; --chart-exp: #ef4444;
     /* 대분류 표시 막대 (기록 줄 왼쪽) */
     --cat-inc: #10b981; --cat-exp: #ef4444; --cat-sav: #4f5fe6; --cat-trans: #f59e0b; --cat-loan: #7c3aed;
@@ -771,7 +773,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-27_23:00';
+const APP_BUILD = '2026-09-27_23:19';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -5334,7 +5336,7 @@ function getYearColor(year){
   // 예전엔 연도마다 6색 순환 → 색이 너무 많아 2026-09-27에 하나로 통일
   return 'var(--accent)';
 }
-// 기록 줄 배경 (style="background:…" 안에 들어감). 배경은 흰색, 대분류는 왼쪽 3px 막대로만 구분
+// 대분류별 색 (기록 줄 바탕·왼쪽 막대)
 function getCatColor(cat){
   switch(cat){
     case '수입': return 'var(--cat-inc)';
@@ -5345,8 +5347,12 @@ function getCatColor(cat){
     default: return 'var(--border)';
   }
 }
+// 기록 줄 배경: 대분류 색을 은은하게 깐 바탕(예전과 같은 5%) + 왼쪽 3px 막대 (2026-09-27 사용자 요청으로 바탕색 복원)
+// style="background:…" 안에 들어가므로 뒤에 border-left를 이어 붙인다
 function getCatBgColor(cat){
-  return 'var(--surface);border-left:3px solid '+getCatColor(cat);
+  // 바탕은 예전과 똑같이: 원래 색에 투명도 0D(약 5%), 대출은 바탕 없이 카드색 (사용자 요청)
+  const bg={'수입':'#10b9810D','지출':'#ef44440D','저축':'#3b82f60D','이체대체':'#f59e0b0D'}[cat]||'var(--card)';
+  return bg+';border-left:3px solid '+getCatColor(cat);
 }
 
 
