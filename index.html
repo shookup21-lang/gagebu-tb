@@ -258,6 +258,11 @@
   .card-setting-item { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
   .card-setting-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .card-name-badge { font-size:15px; font-weight:700; color:var(--yellow); }
+  .closed-cards-toggle { display:block; width:100%; margin-top:8px; padding:12px; border:1px dashed var(--border); border-radius:12px; background:transparent; color:var(--text-sub); font-size:13px; cursor:pointer; }
+  .closed-cards-note { font-size:12px; color:var(--text-muted); margin:8px 2px; line-height:1.5; }
+  .closed-card-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; margin-bottom:6px; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+  .closed-card-name { font-size:14px; font-weight:700; color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .closed-card-sub { font-size:12px; color:var(--text-muted); margin-top:2px; }
   .card-del-btn { background:color-mix(in srgb, var(--red) 13%, transparent); border:none; border-radius:8px; cursor:pointer; color:var(--red); padding:5px 10px; font-size:12px; }
   .card-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
   .card-info-box { background:var(--card); border-radius:12px; padding:10px; }
@@ -868,7 +873,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-28_20:10';
+const APP_BUILD = '2026-09-28_21:05';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -1062,7 +1067,7 @@ function toDateStr(d) {
 }
 function fmtNum(n) { if(!n&&n!==0) return '-'; return Number(n).toLocaleString('ko-KR')+'원'; }
 function fmtW(n) { if(n===null||n===undefined||isNaN(n)) return '0'; return Math.floor(Number(n)).toLocaleString('ko-KR'); }
-function fmtK(n) { if(!n) return ''; return Number(n).toLocaleString('ko-KR'); }
+function fmtK(n) { if(n===0) return '0'; if(!n) return ''; return Number(n).toLocaleString('ko-KR'); }
 // 휴대폰 달력 칸용 짧은 금액: '만원' 단위의 숫자만 (단위 글자는 붙이지 않음)
 //   131,000 → 13.1   7,000 → 0.7   100 → 0.01   1,800,000 → 180   12,000,000 → 1200
 //   소수점은 2자리까지(끝의 0은 지움), 정수 부분이 100 이상이면 소수점 없이 반올림.
@@ -1528,9 +1533,10 @@ function renderCalHTML() {
   const firstDay=new Date(currentYear,currentMonth,1).getDay();
   const daysInMonth=new Date(currentYear,currentMonth+1,0).getDate();
   const mr=monthRecords(currentYear,currentMonth);
-  const _excC=['이체대체','저축','대출'];
-  const totalIncome=mr.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0);
-  const totalExpense=mr.filter(r=>r.expense&&!_excC.includes(r.cat)&&!r.cat.includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+  // 메인(달력 머리·칸, 주, 날짜 요약) 합계는 통계와 같은 기준: 수입 = 대분류 '수입'만, 지출 = '지출'만 (2026-09-28 사용자 결정)
+  //  예전엔 대출금·저축 해지 입금도 수입에 들어가 통계와 숫자가 달랐다
+  const totalIncome=mr.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0);
+  const totalExpense=mr.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
   // 이번 달 잔액 = 수입 - (지출 + 저축)   ※ 대출은 자산 이동·비용이라 제외
   const totalSavingM=mr.filter(r=>r.expense&&r.cat==='저축').reduce((s,r)=>s+(r.expense||0),0);
   const balance=totalIncome-totalExpense-totalSavingM;
@@ -1557,8 +1563,8 @@ function renderCalHTML() {
     h+='<div class="day-num '+numCls+'">'+d+'</div>';
     if(cnt>0){
       // 휴대폰용 짧은 금액 (넓은 화면에서는 숨기고 아래 .day-amt를 씀)
-      const pInc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0);
-      const pExp=recs.filter(r=>r.expense&&!_excC.includes(r.cat)&&!(r.cat||'').includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+      const pInc=recs.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0);
+      const pExp=recs.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
       if(pInc||pExp){
         h+='<div class="day-amt-m">';
         if(pInc) h+='<span style="color:'+(pInc>0?'var(--green)':'var(--red)')+'">'+(pInc>0?'+':'-')+fmtShortW(Math.abs(pInc))+'</span>';
@@ -1577,8 +1583,8 @@ function renderCalHTML() {
       if(recs.some(r=>r.type==='신용')) h+='<div class="dot" style="background:var(--yellow)"></div>';
       h+='</div>';
       // 넓은 화면용 일별 금액 (패널 머리의 합계와 같은 기준)
-      const dInc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0);
-      const dExp=recs.filter(r=>r.expense&&!_excC.includes(r.cat)&&!(r.cat||'').includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+      const dInc=recs.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0);
+      const dExp=recs.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
       if(dInc||dExp){
         h+='<div class="day-amt">';
         if(dInc) h+='<span style="color:'+(dInc>0?'var(--green)':'var(--red)')+'">'+(dInc>0?'+':'-')+fmtK(Math.abs(dInc))+'</span><br>';
@@ -1598,7 +1604,11 @@ function selectDateEl(el){
   el.classList.add('selected');
   selectDate(el.getAttribute('data-date'));
 }
-function selectDate(d){selectedDate=d;renderPanel(d);}
+function selectDate(d){
+  // 다른 날로 옮기면 선택을 비운다 — 안 보이는 전날 기록이 선택된 채 삭제·복제되던 문제 (2026-09-28)
+  if(d!==selectedDate){panelSelectMode=false;panelSelectedIds.clear();}
+  selectedDate=d;renderPanel(d);
+}
 // 주의 weekOffset 변경 시 currentYear/currentMonth를 그 주의 일요일 기준 월로 동기화
 // → 메인 헤더(2026년 4월)와 다른 탭이 일관되게 유지됨
 function syncCurrentFromWeek(){
@@ -1684,7 +1694,7 @@ function renderWeekHTML(){
   let h='<div class="week-body"><div class="week-nav"><button class="cal-nav-btn" onclick="prevWeek()">‹</button><span class="week-range" onclick="openWeekPicker()" style="cursor:pointer;user-select:none"><span style="color:'+getYearColor(dates[0].slice(0,4))+'">'+dates[0].slice(0,4)+'</span>년 '+dates[0].slice(5).replace('-','/')+'~'+dates[6].slice(5).replace('-','/')+'</span><button class="cal-nav-btn" onclick="nextWeek()">›</button></div>';
   dates.forEach((ds,i)=>{
     const recs=bd[ds]||[]; const isToday=ds===todayStr;
-    const inc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&!['이체대체','저축','대출'].includes(r.cat)&&!r.cat.includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+    const inc=recs.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
     const nc=i===0?'color:var(--red)':i===6?'color:var(--sat)':isToday?'color:var(--accent)':'';
     h+='<div class="week-day-card'+(isToday?' today-card':'')+'" data-date="'+ds+'" onclick="selectDateEl(this)">';
     h+='<div class="week-day-header"><span class="week-day-name" style="'+nc+'">'+dayNames[i]+' '+ds.slice(8)+'</span>';
@@ -1800,7 +1810,7 @@ function recordRowHTML(r, compact){
 function renderPanel(dateStr){
   const bd=byDate(); const recs=bd[dateStr]||[];
   const [yr,mo,dd]=dateStr.split('-');
-  const inc=recs.filter(r=>r.income&&r.cat!=='이체대체').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&!['이체대체','저축','대출'].includes(r.cat)&&!r.cat.includes('저축')).reduce((s,r)=>s+(r.expense||0),0);
+  const inc=recs.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
   // 패널 헤더 날짜: 목록 탭과 동일 형식 (연도-월-일, 연도색 적용)
   document.getElementById('panel-title').innerHTML = '<span style="color:'+getYearColor(yr)+'">'+yr+'</span><span style="color:var(--text-sub)">-'+mo+'-'+dd+'</span>';
   // 헤더 보조 정보: 선택 모드면 "선택됨 N건", 아니면 평소처럼
@@ -2042,7 +2052,7 @@ function openAddForm(){editingId=null;selectedRecord=null;showFormPage({date:sel
 function openAddFormFromFab(){selectedDate=todayStr;editingId=null;selectedRecord=null;showFormPage({date:todayStr,type:'일반',cat:'',sub:'',place:'',content:'',income:'',expense:'',pay:'',note:'',discount:'',discountPct:'',memo:''});}
 function showFormPage(r){
   formMoreOpen=false;
-  formState={date:r.date||todayStr,type:r.type||'일반',cat:r.cat||'',sub:r.sub||'',pay:r.pay||'',place:r.place||'',content:r.content||'',income:r.income||'',expense:r.expense||'',note:r.note||'',discount:r.discount||'',discountPct:r.discountPct||'',memo:r.memo||''};
+  formState={date:r.date||todayStr,type:r.type||'일반',cat:r.cat||'',mid:r.mid||'',sub:r.sub||'',pay:r.pay||'',place:r.place||'',content:r.content||'',income:r.income||'',expense:r.expense||'',note:r.note||'',discount:r.discount||'',discountPct:r.discountPct||'',memo:r.memo||''};
   document.getElementById('form-title').textContent=editingId?'기록 수정':'기록 추가';
   renderFormBody(); showPage('form-page');
 }
@@ -2087,14 +2097,14 @@ function renderFormBody(){
     </div>` : ''}
     <div class="form-row2">
       <div class="form-group"><label class="form-label">중분류</label>
-        <div class="custom-select-box" onclick="openCSelectMid()"><span class="custom-select-val ${!r.mid?'placeholder':''}">${r.mid||'선택'}</span><span class="custom-select-arrow">▼</span></div>
+        <div class="custom-select-box" onclick="openCSelectMid()"><span class="custom-select-val ${!r.mid?'placeholder':''}">${r.mid?escapeHTML(r.mid):'선택'}</span><span class="custom-select-arrow">▼</span></div>
       </div>
       <div class="form-group"><label class="form-label">소분류</label>
-        <div class="custom-select-box" onclick="openCSelectSub()"><span class="custom-select-val ${!r.sub?'placeholder':''}">${r.sub||'선택'}</span><span class="custom-select-arrow">▼</span></div>
+        <div class="custom-select-box" onclick="openCSelectSub()"><span class="custom-select-val ${!r.sub?'placeholder':''}">${r.sub?escapeHTML(r.sub):'선택'}</span><span class="custom-select-arrow">▼</span></div>
       </div>
     </div>
     <div class="form-group"><div class="form-label-row"><label class="form-label">내 지갑</label><div class="select-btn-wrap sm"><button type="button" class="type-btn${r.type==='일반'?' selected':''}" onclick="setFormType('일반')">일반</button><button type="button" class="type-btn${r.type==='신용'?' selected':''}" onclick="setFormType('신용')">카드</button></div></div>
-      <div class="custom-select-box" onclick="openCSelectPay()"><span class="custom-select-val ${!r.pay?'placeholder':''}">${r.pay||'선택'}</span><span class="custom-select-arrow">▼</span></div>
+      <div class="custom-select-box" onclick="openCSelectPay()"><span class="custom-select-val ${!r.pay?'placeholder':''}">${r.pay?escapeHTML(r.pay):'선택'}</span><span class="custom-select-arrow">▼</span></div>
     </div>
     <div class="form-group"><label class="form-label">날짜<i class="req" title="필수">*</i></label><input class="form-input" type="date" id="f-date" value="${r.date}" onchange="formState.date=this.value"></div>
     <div class="form-group"><label class="form-label">내용</label><input class="form-input" id="f-content" placeholder="내용 입력" value="${escapeHTML(r.content||'')}"></div>
@@ -2176,7 +2186,7 @@ function pickPlaceSuggest(el){
     const t=L.type==='신용'?'신용':'일반';
     // 사용자가 직접 일반/카드를 골랐다면 다른 유형의 지갑으로 바꾸지 않는다
     if(!formState.pay&&L.pay&&!(formState.typeTouched&&formState.type!==t)){
-      const pays=t==='신용'?[...new Set([...loadCardSettings().map(c=>c.card),...PAY_CREDIT])]:loadPayGeneral();
+      const pays=t==='신용'?[...new Set([...loadCardSettings().filter(c=>!c.closed).map(c=>c.card),...PAY_CREDIT])]:loadPayGeneral();
       if(pays.indexOf(L.pay)>=0){ formState.type=t; formState.pay=L.pay; }
     }
     _moveAmountForCat();
@@ -2197,10 +2207,12 @@ function setFormCat(encodedCat){
 
 function saveForm(){
   syncFormInputs();
-  const date=document.getElementById('f-date')?.value||formState.date;
+  // syncFormInputs()가 화면 칸 값을 formState에 옮겼으므로 formState를 쓴다.
+  //  (예전 'DOM값||formState'는 내용을 지워도 옛 내용이 저장됐다 — 2026-09-28)
+  const date=formState.date||'';
   const type=formState.type; const cat=formState.cat; const mid=formState.mid||''; const sub=formState.sub;
-  const place=(document.getElementById('f-place')?.value||formState.place||'').trim();
-  const content=(document.getElementById('f-content')?.value||formState.content||'').trim();
+  const place=(formState.place||'').trim();
+  const content=(formState.content||'').trim();
   const income=parseAmount(document.getElementById('f-income')?.value);
   const expense=parseAmount(document.getElementById('f-expense')?.value);
   const pay=formState.pay;
@@ -2210,6 +2222,10 @@ function saveForm(){
   const memo=(document.getElementById('f-memo')?.value||'').trim();
   if(!date||!cat||!place) return alert('날짜, 대분류, 소제목은 필수입니다.');
   if(!income&&!expense) return alert('수입 또는 지출 금액을 입력하세요.');
+  // 카드로는 입금을 받지 않는다 — 카드 대금·계좌 잔고 계산이 출금만 보므로 입금은 어디에도 반영되지 않았다 (2026-09-28 사용자 결정)
+  if(type==='신용'&&income) return alert('카드로는 입금을 기록할 수 없습니다.\n\n'
+    +'· 카드 환불·결제 금액 할인: 지출에 마이너스 금액(예: -5,000)\n'
+    +'· 통장으로 들어온 캐시백: [일반]으로 바꾸고 그 통장을 고른 뒤 입금');
   if(editingId){
     const idx=records.findIndex(r=>r.id===editingId);
     if(idx<0){ alert('수정할 기록을 찾을 수 없습니다.\n다른 기기에서 불러오기로 바뀌었을 수 있습니다.'); return; }
@@ -3186,7 +3202,7 @@ function renderBalanceHero(netWorth, totalAsset, loansTotal){
   h += '<div style="font-size:12px;opacity:0.85;margin-bottom:2px">순자산</div>';
   h += '<div style="font-size:26px;font-weight:700;letter-spacing:-0.8px;color:'+netColor+';line-height:1.15">'+(netWorth>=0?'':'-')+fmtK(Math.abs(netWorth))+'원</div>';
   h += '<div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px">';
-  h += '<span style="opacity:0.9">자산 <strong style="font-weight:700">'+fmtK(Math.abs(totalAsset))+'</strong></span>';
+  h += '<span style="opacity:0.9">자산 <strong style="font-weight:700">'+(totalAsset<0?'-':'')+fmtK(Math.abs(totalAsset))+'</strong></span>';
   h += '<span style="opacity:0.5">−</span>';
   h += '<span style="opacity:0.9">부채 <strong style="font-weight:700">'+fmtK(Math.abs(loansTotal))+'</strong></span>';
   h += '</div>';
@@ -3507,6 +3523,10 @@ function saveSavingsLoansModal(){
   
   if(!name){ alert('이름을 입력하세요'); return; }
   if(!sub){ alert('소분류를 입력하세요'); return; }
+  // 같은 이름이 둘이면 이체 한 건이 양쪽에서 모두 빠져 잔액이 두 번 계산된다 → 막음 (2026-09-28)
+  const _same = (type==='savings'?loadSavingsAccounts():loadLoansAccounts())
+    .some(function(a,i){ return a && a.name===name && !(editing && i===parseInt(editIdxStr)); });
+  if(_same){ alert('같은 이름의 '+(type==='savings'?'저축':'대출')+'이 이미 있습니다.\n다른 이름을 쓰세요.'); return; }
   
   if(type === 'savings'){
     const arr = loadSavingsAccounts();
@@ -3547,7 +3567,10 @@ function renderCardSetting(){
   let h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-sub);line-height:1.8"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.8.6 1.2 1.5 1.2 2.5V18h5.6v-.8c0-1 .4-1.9 1.2-2.5A7 7 0 0 0 12 2z" fill="#fef3c7"/></svg> 결제일·집계기간 설정 후 신용기록이 해당 결제월에 묶입니다.</div>';
   h+='<button class="add-card-btn" onclick="openCardModal()">+ 카드 추가</button>';
   if(!settings.length) h+='<div class="empty-msg">등록된 카드가 없습니다.</div>';
+  else if(!settings.some(function(s){return !s.closed;})) h+='<div class="empty-msg">사용 중인 카드가 없습니다.</div>';
+  const nClosed=settings.filter(function(s){return s.closed;}).length;
   settings.forEach(function(s,idx){
+    if(s.closed) return;   // 해지한 카드는 아래에서 따로
     const{startDate,endDate}=calcCardRange(s.payDay,s.startDay,s.endDay,y,m);
     const recs=records.filter(function(r){return r.type==='신용'&&r.pay===s.card&&r.date>=startDate&&r.date<=endDate&&r.expense;});
     const total=recs.reduce(function(sum,r){return sum+(r.expense||0);},0);
@@ -3564,6 +3587,19 @@ function renderCardSetting(){
     if(_cardUnlinked(s)) h+='<div class="card-warn">⚠️ '+(s.account?'연결 계좌 "'+escapeHTML(s.account)+'"가 내 지갑에 없습니다 (이름이 바뀌었거나 삭제됨)':'연결 계좌가 없습니다')+'. 이 카드로 쓴 돈이 <b>잔고에서 빠지지 않습니다</b>. [수정]에서 연결 계좌를 고르세요.</div>';
     h+='<div class="card-range-box"><div class="card-range-label">당월 집계 범위</div><div class="card-range-val">'+startDate+' ~ '+endDate+'</div><div style="margin-top:6px;display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text-muted)">'+recs.length+'건</span><span style="color:'+(total<0?'var(--green)':'var(--red)')+';font-weight:700">'+(total?(total<0?'+':'')+Math.abs(total).toLocaleString()+'원':'-')+'</span></div></div></div>';
   });
+  if(nClosed){
+    h+='<button type="button" class="closed-cards-toggle" onclick="toggleClosedCards()" aria-expanded="'+closedCardsOpen+'">해지한 카드 '+nClosed+'개 '+(closedCardsOpen?'▲':'▼')+'</button>';
+    if(closedCardsOpen){
+      h+='<div class="closed-cards-note">기록할 때 카드 목록에 나오지 않습니다. 지난 기록과 잔고 계산은 그대로입니다.</div>';
+      settings.forEach(function(s,idx){
+        if(!s.closed) return;
+        const n=_cardRecCount(s.card);
+        h+='<div class="closed-card-row"><div style="min-width:0"><div class="closed-card-name">'+escapeHTML(s.card)+'</div><div class="closed-card-sub">'+(typeof s.closed==='string'?escapeHTML(s.closed)+' 해지 · ':'')+'기록 '+n+'건'+(s.account?' · '+escapeHTML(s.account):'')+'</div></div>'
+          +'<div style="display:flex;gap:6px;flex-shrink:0"><button type="button" onclick="setCardClosed('+idx+',false)" style="background:color-mix(in srgb, var(--accent) 13%, transparent);border:none;border-radius:8px;cursor:pointer;color:var(--accent);padding:5px 10px;font-size:12px">다시 사용</button>'
+          +(n===0?'<button class="card-del-btn" onclick="deleteCardSetting('+idx+')">삭제</button>':'')+'</div></div>';
+      });
+    }
+  }
   const regCards=settings.map(function(s){return s.card;});
   const unregCards=[...new Set(records.filter(function(r){return r.type==='신용'&&r.pay&&!regCards.includes(r.pay);}).map(function(r){return r.pay;}))].filter(Boolean);
   if(unregCards.length>0){
@@ -3582,7 +3618,30 @@ function openCardModal(editIdx){
 
 function closeCardModal(){document.getElementById('card-modal').style.display='none';}
 
-function deleteCardSetting(idx){const s=loadCardSettings();if(!confirm("'"+s[idx].card+"' 카드 설정을 삭제할까요?"))return;s.splice(idx,1);saveCardSettings(s);renderCardSetting();}
+// 카드 삭제 (2026-09-28): 이 카드 기록이 있으면 지우지 않는다.
+//  지우면 그 카드로 쓴 지난 금액이 연결 계좌에서 빠지지 않아 잔고가 사용액만큼 늘어났다.
+//  대신 '해지'(closed)로 표시 → 입력 화면 카드 목록에서 숨고, 카드 설정 화면 아래 '해지한 카드'로 접힌다.
+//  잔고·카드 대금 계산은 해지 여부와 관계없이 그대로 한다(남은 대금도 결제일에 정상 차감).
+function _cardRecCount(card){ return records.filter(function(r){return r.type==='신용'&&r.pay===card;}).length; }
+function deleteCardSetting(idx){
+  const s=loadCardSettings(); const c=s[idx]; if(!c) return;
+  const n=_cardRecCount(c.card);
+  if(n>0){
+    if(c.closed){ alert("'"+c.card+"' 카드로 기록한 내역이 "+n+"건 있어 삭제할 수 없습니다.\n\n지우면 이 카드로 쓴 금액이 잔고에서 빠지지 않게 됩니다.\n해지한 카드는 입력 목록에 나오지 않으니 그대로 두셔도 됩니다."); return; }
+    if(!confirm("'"+c.card+"' 카드로 기록한 내역이 "+n+"건 있어 삭제할 수 없습니다.\n(지우면 이 카드로 쓴 금액이 잔고에서 빠지지 않습니다)\n\n대신 '해지한 카드'로 옮길까요?\n· 기록할 때 카드 목록에 나오지 않습니다\n· 지난 기록·잔고 계산은 그대로입니다\n· 언제든 [다시 사용]으로 되돌릴 수 있습니다")) return;
+    setCardClosed(idx,true); return;
+  }
+  if(!confirm("'"+c.card+"' 카드 설정을 삭제할까요?"))return;
+  s.splice(idx,1);saveCardSettings(s);renderCardSetting();
+}
+function setCardClosed(idx,on){
+  const s=loadCardSettings(); if(!s[idx]) return;
+  if(on) s[idx].closed=todayStr; else delete s[idx].closed;
+  saveCardSettings(s); renderCardSetting();
+  if(typeof tbdrToast==='function') tbdrToast(on?"'"+s[idx].card+"' 카드를 해지한 카드로 옮겼습니다":"'"+s[idx].card+"' 카드를 다시 씁니다");
+}
+function toggleClosedCards(){ closedCardsOpen=!closedCardsOpen; renderCardSetting(); }
+let closedCardsOpen=false;
 // 내 지갑 설정
 
 function previewCardRange(){
@@ -3772,7 +3831,7 @@ function calcLoansBalances(refDate){
       }
     });
     const start = parseInt(l.start) || 0;
-    return { name: l.name, sub: l.sub, start: start, paid: paid, interest: 0, remaining: start - paid };
+    return { name: l.name, sub: l.sub, start: start, paid: paid, interest: 0, remaining: Math.max(0, start - paid) };   // 더 갚은 것처럼 보여도 부채는 0 아래로 내려가지 않음 (음수 부채가 순자산을 부풀리던 문제)
   });
 }
 
@@ -4053,6 +4112,17 @@ function saveCardSetting(){
   if(!isDebit){
     if(!startDay||startDay<1||startDay>31){alert('집계 시작일을 1~31 사이로 입력하세요.');return;}
     if(endDay===null||isNaN(endDay)){alert('집계 마감일을 입력하세요. 말일이면 0.');return;}
+    if(endDay<0||endDay>31){alert('집계 마감일을 0~31 사이로 입력하세요. 말일이면 0.');return;}
+    // 시작일은 마감일 다음 날이어야 달마다 빈틈·겹침 없이 이어진다 (2026-09-28)
+    //  겹치면 한 기록이 두 달 청구서에 모두 잡히고, 빈틈이면 그 날짜 기록은 영원히 결제되지 않는 것으로 계산된다
+    const _contig = endDay===0 ? startDay===1 : (startDay===endDay+1 || (endDay>=28&&startDay===1));
+    if(!_contig){
+      const _exp = endDay===0 ? 1 : (endDay>=31 ? 1 : endDay+1);
+      if(!confirm('⚠️ 집계 시작일('+startDay+'일)이 마감일('+(endDay===0?'말일':endDay+'일')+')의 다음 날이 아닙니다.\n\n'
+        +'이대로면 이용기간 사이에 겹치거나 빠지는 날이 생겨\n'
+        +'어떤 기록은 두 번 청구되거나 영영 결제되지 않은 것으로 계산됩니다.\n\n'
+        +'보통은 시작일 '+_exp+'일입니다. 그래도 저장할까요?')) return;
+    }
     // 이용기간은 '전월 시작일 ~ 당월 마감일'이고 결제는 '당월 결제일'이다.
     // 결제일이 마감일보다 빠르면, 결제일 뒤에 쓴 금액이 이미 결제된 것으로 계산된다.
     if(endDay>0 && payDay<=endDay){
@@ -4068,6 +4138,8 @@ function saveCardSetting(){
   if(editIdxRaw!==''){
     const editIdx=parseInt(editIdxRaw);
     const oldCard=settings[editIdx].card;
+    // 다른 카드 이름으로 바꾸면 설정이 두 개가 되어 대금이 두 번 빠진다 → 막음 (2026-09-28)
+    if(oldCard!==card&&settings.some(function(s,i){return i!==editIdx&&s.card===card;})){alert('이미 등록된 카드 이름입니다.\n다른 이름을 쓰세요.');return;}
     if(oldCard!==card){
       const cnt=records.filter(function(r){return r.type==='신용'&&r.pay===oldCard;}).length;
       if(cnt>0){
@@ -4104,7 +4176,7 @@ function openPayMethodModal(editIdx){
   overlay.innerHTML='<div class="card-modal" onclick="event.stopPropagation()">'
     +'<div class="card-modal-title">'+(isEdit?'내 지갑 수정':'내 지갑 추가')+'</div>'
     +'<div class="form-group" style="margin-bottom:20px"><label class="form-label">내 지갑 이름</label>'
-    +'<input class="form-input" id="pay-method-input" placeholder="예: 현금, 계좌이체" value="'+val+'"></div>'
+    +'<input class="form-input" id="pay-method-input" placeholder="예: 현금, 계좌이체" value="'+escapeHTML(val)+'"></div>'
     +'<div style="display:flex;gap:10px">'
     +'<button type="button" onclick="closePayModal()" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer">취소</button>'
     +'<button type="button" onclick="savePayMethod('+saveArg+')" style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-weight:700">저장</button>'
@@ -4124,7 +4196,10 @@ function savePayMethod(editIdx){
   const list=loadPayGeneral();
   const idx=(editIdx!==null&&editIdx!==undefined&&editIdx!=='null')?parseInt(editIdx):null;
   if(idx!==null){
-    const old=list[idx];list[idx]=val;
+    const old=list[idx];
+    // 다른 지갑 이름으로 바꾸면 두 지갑의 기록·카드 연결이 되돌릴 수 없이 합쳐진다 → 막음 (2026-09-28)
+    if(old!==val&&list.includes(val)){alert('이미 존재하는 지갑입니다.\n다른 이름을 쓰세요.');return;}
+    list[idx]=val;
     if(old!==val){
       const cnt=records.filter(function(r){return r.type==='일반'&&r.pay===old;}).length;
       // 이 계좌를 연결한 카드 개수
@@ -4180,7 +4255,7 @@ function openCSelect(title,items,current,onSelect){
   overlay.id='cselect-overlay'; overlay.className='cselect-overlay';
   overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
   let itemsHtml='';
-  items.forEach(function(v){itemsHtml+='<div class="cselect-item'+(v===current?' selected':'')+'" data-val="'+v.replace(/"/g,'&quot;')+'"><span>'+escapeHTML(v)+'</span>'+(v===current?'<span class="cselect-check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><polyline points="20 6 9 17 4 12"/></svg></span>':'')+'</div>';});
+  items.forEach(function(v){itemsHtml+='<div class="cselect-item'+(v===current?' selected':'')+'" data-val="'+escapeHTML(v)+'"><span>'+escapeHTML(v)+'</span>'+(v===current?'<span class="cselect-check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><polyline points="20 6 9 17 4 12"/></svg></span>':'')+'</div>';});
   overlay.innerHTML='<div class="cselect-sheet"><div class="cselect-header"><span class="cselect-title">'+title+'</span><button class="cselect-close" id="cselect-close-btn" aria-label="닫기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="cselect-list" id="cselect-list">'+(items.length?itemsHtml:'<div style="padding:20px;text-align:center;color:var(--text-muted)">항목이 없습니다</div>')+'</div></div>';
   document.body.appendChild(overlay);
   document.getElementById('cselect-close-btn').addEventListener('click',function(){overlay.remove();});
@@ -4192,8 +4267,8 @@ function openCSelectPay(){
   syncFormInputs();
   let pays;
   if(formState.type==='신용'){
-    // 신용카드 거래: 카드 목록만
-    const cs=loadCardSettings();
+    // 신용카드 거래: 카드 목록만. 해지한 카드는 숨김 (수정 중인 기록의 카드는 남김)
+    const cs=loadCardSettings().filter(s=>!s.closed||s.card===formState.pay);
     pays=[...new Set([...cs.map(s=>s.card),...PAY_CREDIT])];
   } else {
     // 일반 거래: 기본 계좌 목록
@@ -4217,15 +4292,18 @@ function openCSelectPay(){
 }
 function syncFormInputs(){
   const get=id=>{const el=document.getElementById(id);return el?el.value:null;};
-  if(get('f-date')) formState.date=get('f-date');
-  if(get('f-place')) formState.place=get('f-place');
-  if(get('f-content')) formState.content=get('f-content');
+  // 칸이 화면에 있으면 빈 값도 그대로 옮긴다 — 예전엔 빈 칸을 건너뛰어,
+  // 지운 비고·메모·할인이 분류를 고르며 화면을 다시 그릴 때 되살아났다 (2026-09-28)
+  const has=id=>get(id)!==null;
+  if(has('f-date')) formState.date=get('f-date');
+  if(has('f-place')) formState.place=get('f-place');
+  if(has('f-content')) formState.content=get('f-content');
   formState.income=parseAmount(get('f-income'));
   formState.expense=parseAmount(get('f-expense'));
-  if(get('f-note')) formState.note=get('f-note');
-  if(get('f-discount')) formState.discount=(get('f-discount')||'').replace(/,/g,'');
-  if(get('f-discountPct')) formState.discountPct=get('f-discountPct');
-  if(get('f-memo')) formState.memo=get('f-memo');
+  if(has('f-note')) formState.note=get('f-note');
+  if(has('f-discount')) formState.discount=(get('f-discount')||'').replace(/,/g,'');
+  if(has('f-discountPct')) formState.discountPct=get('f-discountPct');
+  if(has('f-memo')) formState.memo=get('f-memo');
 }
 
 function openCSelectMid(){
@@ -4724,6 +4802,7 @@ function renderRangeSummary(start,end){
 function getCardBillForMonth(year,month){
   const settings=loadCardSettings(); const result={};
   settings.forEach(function(s){
+    if(s.payDay===0) return;   // 체크·직불카드는 쓸 때 바로 빠져나가므로 '카드 대금'이 없다
     const{startDate,endDate}=calcCardRange(s.payDay,s.startDay,s.endDay,year,month);
     const recs=records.filter(function(r){return r.type==='신용'&&r.pay===s.card&&r.date>=startDate&&r.date<=endDate&&r.expense;});
     const total=recs.reduce(function(sum,r){return sum+(r.expense||0);},0);
@@ -4792,9 +4871,9 @@ function openMidModal(cat,origMid){
     +'<div class="card-modal-title">'+(origMid?'중분류 수정':'중분류 추가')+'</div>'
     +'<input type="hidden" id="mid-modal-cat" value="'+encodeURIComponent(cat)+'">'
     +'<input type="hidden" id="mid-modal-orig" value="'+encodeURIComponent(origMid||'')+'">'
-    +'<div class="form-group" style="margin-bottom:8px"><div style="font-size:12px;color:var(--text-muted)">대분류: '+cat+'</div></div>'
+    +'<div class="form-group" style="margin-bottom:8px"><div style="font-size:12px;color:var(--text-muted)">대분류: '+escapeHTML(cat)+'</div></div>'
     +'<div class="form-group" style="margin-bottom:20px"><label class="form-label">중분류 이름</label>'
-    +'<input class="form-input" id="mid-modal-name" value="'+(origMid||'')+'" placeholder="예: 식비"></div>'
+    +'<input class="form-input" id="mid-modal-name" value="'+escapeHTML(origMid||'')+'" placeholder="예: 식비"></div>'
     +'<div style="display:flex;gap:10px">'
     +'<button type="button" onclick="closeMidModal()" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer">취소</button>'
     +'<button type="button" onclick="saveMidModal()" style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-weight:700">저장</button>'
@@ -4810,6 +4889,8 @@ function saveMidModal(){
   const cats=loadCategories();
   if(!cats[cat])cats[cat]={};
   if(orig&&orig!==name){
+    // 이미 있는 이름으로 바꾸면 두 중분류가 합쳐지며 한쪽 소분류 목록이 사라진다 → 막음 (2026-09-28)
+    if(Object.prototype.hasOwnProperty.call(cats[cat],name)){alert('이미 존재하는 중분류입니다.\n다른 이름을 쓰세요.');return;}
     // 영향도 확인 (기록 + 산하 저축/대출 목록)
     const imp=_impactMid(cat, orig);
     const summary=_impactSummary(imp);
@@ -4823,7 +4904,7 @@ function saveMidModal(){
     if(expandedCats.has(cat+'__'+orig)){expandedCats.delete(cat+'__'+orig);expandedCats.add(cat+'__'+name);}
     lastEditedCat = {kind:'mid', cat:cat, mid:name};
   } else if(!orig){
-    if(cats[cat][name]!==undefined){alert('이미 존재하는 중분류입니다.');return;}
+    if(Object.prototype.hasOwnProperty.call(cats[cat],name)){alert('이미 존재하는 중분류입니다.');return;}
     cats[cat][name]=[];
     expandedCats.add(cat);  // 대분류도 펼치기
     expandedCats.add(cat+'__'+name);
@@ -5179,37 +5260,56 @@ function handleCSVImportContent(text){
     return;
   }
 
-  const imported=[];let skipCount=0;let skipDate=0,skipAmount=0;
-  let maxId=records.reduce((m,r)=>Math.max(m,r.id||0),0);
+  const imported=[];let skipCount=0;let skipDate=0,skipAmount=0,skipCat=0;
+  // id는 지금 시각 이후로 준다 — 기존 최대 id+1이면 두 기기에서 따로 불러온 기록의 id가 겹쳐
+  // 백업 합치기에서 한쪽이 '이미 있음'으로 빠지고, 불러오기 전 '이 기기에만 있는 기록' 경고에도 안 잡혔다 (2026-09-28)
+  let maxId=Math.max(records.reduce((m,r)=>Math.max(m,Number(r.id)||0),0), Date.now());
+  const _cell=function(i){ return i>=0 ? String(cols_[i]==null?'':cols_[i]).trim() : ''; };
+  let cols_=[];
+  const _FIXED_CATS=['수입','이체대체','지출','저축','대출'];
 
   rows.slice(1).forEach(function(cols){
-    const date=(cols[iDate]||'').trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){skipCount++;skipDate++;return;}
-    const income=parseAmount(cols[iIncome])||null;
-    const expense=parseAmount(cols[iExpense])||null;
-    if(!income&&!expense){skipCount++;skipAmount++;return;}
+    cols_=cols;
+    // 날짜: 2026-09-01 외에 엑셀이 바꿔 놓는 2026/9/1, 2026.9.1도 받는다. 13월 45일 같은 없는 날짜는 제외
+    let date=_cell(iDate);
+    const dm=date.match(/^(\d{4})[-.\/]\s*(\d{1,2})[-.\/]\s*(\d{1,2})\.?$/);
+    if(!dm){skipCount++;skipDate++;return;}
+    const dy=+dm[1], dmo=+dm[2], dd=+dm[3];
+    const dt=new Date(dy,dmo-1,dd);
+    if(dt.getFullYear()!==dy||dt.getMonth()!==dmo-1||dt.getDate()!==dd){skipCount++;skipDate++;return;}
+    date=dy+'-'+String(dmo).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
+    // 대분류는 고정 5개만 — 공백이 붙었거나 다른 이름이면 화면마다 합계가 달라진다
+    const cat=_cell(iCat);
+    if(_FIXED_CATS.indexOf(cat)<0){skipCount++;skipCat++;return;}
+    // 금액: '5만' '9천' '-9,000원'도 읽는다. 예전엔 '5만'이 5원으로 조용히 들어갔다.
+    //  읽을 수 없는 글자가 있으면 잘라 읽지 않고 그 줄을 뺀다
+    let bad=false;
+    const amt=function(i){ const t=_cell(i); if(!t) return null; const v=parseKrAmount(t); if(v===null){bad=true;return null;} return v||null; };
+    const income=amt(iIncome), expense=amt(iExpense), discount=amt(iDiscount);
+    if(bad||(!income&&!expense)){skipCount++;skipAmount++;return;}
     imported.push({
       id:++maxId,
       date,
-      type:cols[iType]||'일반',
-      cat:cols[iCat]||'',
-      mid:iMid>=0?(cols[iMid]||''):'',
-      sub:iSub>=0?(cols[iSub]||''):'',
-      place:iPlace>=0?(cols[iPlace]||''):'',
+      type:_cell(iType)||'일반',
+      cat,
+      mid:_cell(iMid),
+      sub:_cell(iSub),
+      place:_cell(iPlace),
       content:iContent>=0?(cols[iContent]||''):'',
       income,
       expense,
-      pay:iPay>=0?(cols[iPay]||''):'',
+      pay:_cell(iPay),
       note:iNote>=0?(cols[iNote]||''):'',
-      discount:iDiscount>=0?(parseAmount(cols[iDiscount])||null):null,
+      discount,
       discountPct:iDiscountPct>=0?(parseAmount(cols[iDiscountPct])||null):null,
       memo:iMemo>=0?(cols[iMemo]||''):''
     });
   });
 
-  const skipWhy = (skipDate?'\n· 날짜 형식이 YYYY-MM-DD가 아님: '+skipDate+'건':'')
-               + (skipAmount?'\n· 수입·지출 금액이 없거나 숫자가 아님: '+skipAmount+'건':'')
-               + (skipDate?'\n\n(엑셀이 날짜를 2026/9/14 같은 형식으로 바꿨을 수 있습니다)':'');
+  const skipWhy = (skipDate?'\n· 날짜를 읽을 수 없거나 없는 날짜: '+skipDate+'건':'')
+               + (skipCat?'\n· 대분류가 수입·이체대체·지출·저축·대출 중 하나가 아님: '+skipCat+'건':'')
+               + (skipAmount?'\n· 수입·지출 금액이 없거나 읽을 수 없음: '+skipAmount+'건':'')
+               + (skipDate?'\n\n(날짜는 2026-09-14 형식이 가장 안전합니다)':'');
   if(!imported.length){alert('불러올 수 있는 데이터가 없습니다.\n(건너뜀: '+skipCount+'건)'+skipWhy);return;}
   if(skipCount>0) window._pendingImportSkipWhy = skipWhy; else window._pendingImportSkipWhy = '';
   window._pendingImport=imported;
@@ -5253,7 +5353,7 @@ function doImportAdd(){
     )) return;
   }
   closeImportOverlay();
-  const maxId=records.reduce((m,r)=>Math.max(m,r.id||0),0);
+  const maxId=Math.max(records.reduce((m,r)=>Math.max(m,Number(r.id)||0),0), Date.now());   // 위 handleCSVImportContent 주석 참고
   imported.forEach(function(r,i){r.id=maxId+i+1;});
   records=[...records,...imported];
   records.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
@@ -5356,9 +5456,12 @@ function numWithComma(v){
   if(!v&&v!==0) return '';
   const s=String(v);
   const neg=s.trim().charAt(0)==='-';
-  const num=s.replace(/[^0-9]/g,'');
-  if(!num) return '';
-  return (neg?'-':'')+num.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  // 소수점 아래는 따로 떼어 둔다 — 예전엔 점을 지워 1234.5가 12,345(10배)로 저장됐다 (2026-09-28)
+  const parts=s.split('.');
+  const num=parts[0].replace(/[^0-9]/g,'');
+  const frac=parts.length>1?parts[1].replace(/[^0-9]/g,''):'';
+  if(!num&&!frac) return '';
+  return (neg?'-':'')+(num||'0').replace(/\B(?=(\d{3})+(?!\d))/g,',')+(frac?'.'+frac:'');
 }
 // ± 토글 버튼: 입금/출금 입력칸의 부호를 한 번에 전환
 // 안드로이드 숫자 키패드에 '-' 키가 없는 경우의 대안
@@ -5881,9 +5984,17 @@ function _bkMerge(obj, incoming){
       sigN[s] = (sigN[s] || 0) + 1;
     });
 
-    var added = 0, skipped = 0;
+    var added = 0, skipped = 0, bad = 0;
+    var FIXED = ['수입','이체대체','지출','저축','대출'];
+    var nextId = Math.max(Date.now(), mine.reduce(function(m,x){ return Math.max(m, Number(x.id)||0); }, 0));
+    var toNum = function(v){ if (v == null || v === '') return null; var n = Number(String(v).replace(/,/g,'')); return isNaN(n) ? null : (n || null); };
     incoming.forEach(function(r){
-      if (!r || !r.date) return;
+      // 형식이 깨진 기록은 받지 않는다 — 날짜가 글자가 아니거나 대분류가 없으면 저장 뒤 앱이 계속 멈췄다 (2026-09-28)
+      if (!r || typeof r !== 'object' || typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || FIXED.indexOf(r.cat) < 0) { bad++; return; }
+      r = Object.assign({}, r);
+      ['income','expense','discount'].forEach(function(k){ if (typeof r[k] === 'string') r[k] = toNum(r[k]); });
+      // id 없는 기록은 새 id — 예전엔 id 없는 기록끼리 같은 것으로 보고 하나만 남겼다
+      if (r.id == null || r.id === '') r.id = ++nextId;
       var s = _bkSig(r);
 
       // 1) id가 같으면 같은 기록이 확실하다
@@ -5912,6 +6023,7 @@ function _bkMerge(obj, incoming){
       '✅ 합치기 완료\n\n' +
       '· 새로 추가: ' + added + '건\n' +
       '· 이미 있어서 건너뜀: ' + skipped + '건\n' +
+      (bad ? '· 형식이 잘못되어 제외: ' + bad + '건\n' : '') +
       '· 분류 추가: ' + nCat + '개\n' +
       '· 지갑·카드 추가: ' + nLst + '개\n\n' +
       '총 기록: ' + records.length + '건'
@@ -6226,9 +6338,15 @@ async function _syncReadRemote(pass, remote){
   var obj;
   try { obj = JSON.parse(plain); } catch(e) { return { error:'parse', message:e.message }; }
   if (!obj || !obj.data) return { error:'parse', message:'백업 형식이 아닙니다' };
+  if (obj.app && obj.app !== 'TBDR-GAGEBU') return { error:'parse', message:'이 가계부의 데이터가 아닙니다' };
+  // 기록 키가 없는 것은 '기록 0건'(빈 가계부)이지만, 있는데 깨졌으면 받지 않는다.
+  // 예전엔 깨진 것도 0건으로 보고 그대로 덮어써 기기의 기록이 사라질 수 있었다 (2026-09-28)
   var recs = [];
-  try { recs = JSON.parse(obj.data['tdbr_v3'] || '[]'); } catch(e) {}
-  if (!Array.isArray(recs)) recs = [];
+  if (obj.data['tdbr_v3'] != null) {
+    try { recs = JSON.parse(obj.data['tdbr_v3']); } catch(e) { recs = null; }
+    if (typeof obj.data['tdbr_v3'] !== 'string' || !Array.isArray(recs))
+      return { error:'parse', message:'서버의 기록 형식이 올바르지 않습니다' };
+  }
   return { obj:obj, records:recs };
 }
 
@@ -6304,7 +6422,13 @@ async function syncUpload(){
           (n > 0 ? '\n서버에만 있는 ' + n + '건은 되살릴 수 없습니다.' : ''))) return;
     }
 
-    var plain = JSON.stringify(_bkObject());
+    // 올리는 사이에 입력한 기록은 이번 업로드에 안 들어간다. 그 변경 표시를 지우지 않도록
+    // 찍어 둔 시점의 변경 표시·시각을 기억한다 (sessionAutoUpload와 같은 방식, 2026-09-28)
+    var dirtyAtSnap = null;
+    try { dirtyAtSnap = STORE.getItem(SYNC_DIRTY_KEY); } catch(e){}
+    var snapAt = Date.now();
+    var snapObj = _bkObject();
+    var plain = JSON.stringify(snapObj);
     var box   = await _syncEncrypt(pass, plain);
     var next  = (remote && remote.version ? remote.version : 0) + 1;
 
@@ -6313,7 +6437,7 @@ async function syncUpload(){
       version: next,
       updatedBy: me,
       updatedAt: new Date().toISOString(),
-      recordCount: records.length
+      recordCount: snapObj.recordCount
     };
     if (box.z) payload.z = box.z;
 
@@ -6328,10 +6452,12 @@ async function syncUpload(){
     await window.TBDR_FB.save(docId, payload);
 
     syncSetVer(next);
-    syncSetInfo({ dir:'up', by:me, at:payload.updatedAt, localAt:Date.now(), count:records.length });
-    syncClearDirty();
+    syncSetInfo({ dir:'up', by:me, at:payload.updatedAt, localAt:snapAt, count:snapObj.recordCount });
+    var changedDuring = false;
+    try { changedDuring = STORE.getItem(SYNC_DIRTY_KEY) !== dirtyAtSnap; } catch(e){}
+    if (!changedDuring) syncClearDirty();
 
-    alert('☁️ 서버에 저장 완료\n\n· 기록 ' + records.length + '건\n· 저장자: ' + me +
+    alert('☁️ 서버에 저장 완료\n\n· 기록 ' + snapObj.recordCount + '건\n· 저장자: ' + me +
           '\n· 전송 크기: ' + kb + 'KB' +
           '\n\n배우자분은 앱에서 [서버에서 불러오기]를 누르면 됩니다.');
     if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
@@ -6538,6 +6664,8 @@ async function sessionRefreshIfNewer(){
     var rr = await _syncReadRemote(pass, remote);
     if (rr.error) return;
     if (syncIsDirty()) return;   // 확인하는 사이 입력이 생겼으면 중단
+    // 서버를 읽는 사이 입력 화면 등으로 옮겨 갔으면 새로고침하지 않는다 (입력 중인 내용 보호, 2026-09-28)
+    if (!mp.classList.contains('active')) return;
     var ver = remote.version || 0;
     _bkOverwrite(rr.obj, { silent:true, after:function(){
       syncSetVer(ver);
