@@ -40,11 +40,11 @@
   .cal-nav-btn { background: transparent; border: none; cursor: pointer; color: var(--text-sub); font-size: 20px; padding: 0; border-radius: 8px; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .cal-nav-btn:active { background: var(--card); }
   .cal-nav-title { font-weight: 700; font-size: 16px; }
-  .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 8px; }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); padding: 0 8px; }
   .cal-weekday { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); padding: 6px 0; }
   .cal-weekday.sun { color: var(--red); }
   .cal-weekday.sat { color: var(--sat); }
-  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 8px; gap: 3px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); padding: 0 8px; gap: 3px; }
   .cal-cell { border-radius: 12px; padding: 6px 4px 8px; cursor: pointer; text-align: center; border: 1px solid transparent; min-height: 62px; transition: all 0.1s; }
   .cal-cell:active { opacity: 0.7; }
   .cal-cell.today { border-color: var(--accent); }
@@ -63,7 +63,11 @@
   .day-panel { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--surface); border-top: 1px solid var(--border); border-radius: 20px 20px 0 0; z-index: 300; max-height: 70vh; display: flex; flex-direction: column; box-shadow: 0 -8px 40px #0008; }
   .panel-drag { display: flex; justify-content: center; padding: 10px 0 0; }
   .panel-drag-bar { width: 40px; height: 4px; border-radius: 2px; background: var(--border); }
-  .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 8px; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px 8px; }
+  .panel-header > div:first-child { min-width: 0; }
+  .panel-header .panel-sub { overflow-wrap: anywhere; }
+  .panel-btns { flex-shrink: 0; }
+  .panel-btns button { white-space: nowrap; }
   .panel-title { font-size: 18px; font-weight: 700; }
   .panel-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
   .panel-btns { display: flex; gap: 8px; }
@@ -89,7 +93,7 @@
   .item-place { font-size: 14px; font-weight: 600; }
   .item-content { font-size: 12px; color: var(--text-sub); margin-top: 1px; }
   .item-pay { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .item-right { text-align: right; min-width: 80px; }
+  .item-right { text-align: right; min-width: 80px; max-width: 45%; overflow-wrap: anywhere; }
   .item-income { font-size: 15px; font-weight: 700; color: var(--green); }
   .item-expense { font-size: 15px; font-weight: 700; color: var(--red); }
   .item-discount { font-size: 12px; color: var(--text-muted); }
@@ -123,7 +127,8 @@
 
   /* 폼 */
   .form-body { padding: 12px 20px 24px; display: flex; flex-direction: column; gap: 10px; }
-  .form-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+  .form-row2 .form-input { min-width: 0; }   /* 날짜 칸이 카드 밖으로 삐져나오던 것 (360px) */
   .form-group { display: flex; flex-direction: column; gap: 3px; }
   .form-label { font-size: 12px; color: var(--text-muted); }
   .form-input, .form-select, .form-textarea { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; color: var(--text); font-size: 15px; outline: none; font-family: inherit; width: 100%; }
@@ -146,7 +151,7 @@
   .record-row-date { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
   .record-row-place { font-size: 14px; font-weight: 600; }
   .record-row-cat { font-size: 12px; color: var(--text-sub); }
-  .record-row-right { text-align: right; }
+  .record-row-right { text-align: right; max-width: 45%; overflow-wrap: anywhere; }
 
   /* 목록 탭 압축 모드 (행 글자/높이 축소) */
   .record-row.compact { padding: 6px 12px; margin-bottom: 5px; }
@@ -220,7 +225,7 @@
   .detail-table td:first-child { width:110px; min-width:110px; max-width:110px; white-space:normal; word-break:keep-all; line-height:1.3; padding-left:10px; padding-right:6px; }
   /* 숫자 셀: 모두 동일 너비로 강제 */
   .detail-table th:not(:first-child),
-  .detail-table td:not(:first-child) { width:80px; min-width:80px; }
+  .detail-table td:not(:first-child) { width:96px; min-width:96px; }   /* 80px면 부호 붙은 9자리(+123,456,789)가 …로 잘렸다 (2026-09-28) */
   .detail-table tr.section-header td { background:var(--surface); color:var(--accent); font-weight:700; font-size:13px; padding:10px; }
   .detail-table tr.total-row td { background:var(--card); font-weight:700; color:var(--text); border-top:2px solid var(--accent); }
   .detail-table tr.sub-row td:first-child { padding-left:20px; color:var(--text-muted); }
@@ -716,7 +721,7 @@ body.wide .cal-cell.selected { background:var(--brand); border-color:var(--brand
 body.wide .day-num { font-size:15px; margin-bottom:6px; }
 body.wide .day-count { font-size:12px; font-weight:600; color:var(--text-muted); }
 body.wide .day-dots { display:none; }
-body.wide .day-amt { display:block; font-size:12px; font-weight:700; line-height:1.4; margin-top:3px; font-variant-numeric:tabular-nums; }
+body.wide .day-amt { display:block; font-size:12px; font-weight:700; line-height:1.4; margin-top:3px; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 body.wide .cal-cell.selected .day-amt span,
 body.wide .cal-cell.selected .day-count { color:#fff !important; }
 body.wide .list-body, body.wide .week-body { padding:16px 20px; }
@@ -873,7 +878,7 @@ body.wide .card-modal, body.wide .cselect-sheet { border-radius:16px; }
 // ═══════════════════════════════════════════════════════════════
 // 빌드 정보 (HTML 수정 시마다 자동 업데이트)
 // ═══════════════════════════════════════════════════════════════
-const APP_BUILD = '2026-09-28_21:05';
+const APP_BUILD = '2026-09-28_21:53';
 
 // ═══════════════════════════════════════════════════════════════
 // 기기 모드
@@ -1392,6 +1397,7 @@ function backFromDetail(){
     showPage('search-page');
     detailFrom = null;
     // 거래 수정/삭제가 일어났을 수 있으니 현재 검색어로 결과 다시 그림 → 최신 데이터 반영
+    renderSearchChrome();   // 필터의 지갑 목록도 새로 (수정으로 새 지갑이 생겼을 수 있음, 2026-09-28)
     doSearch();
     // 검색 페이지 스크롤 위치 복원
     if(savedScrollPos.search > 0){
@@ -1404,7 +1410,26 @@ function backFromDetail(){
     backToMain();
   }
 }
-function backFromForm() { if(selectedRecord){showPage('detail-page');}else{showPage('main-page');} }
+// 입력 화면을 저장 없이 나갈 때: 무언가 입력·변경했으면 한 번 묻는다 (2026-09-28 사용자 결정)
+//  화면을 열 때의 값(_formSnap)과 지금 값을 비교 — 아무것도 안 바꿨으면 묻지 않고 바로 나간다
+let _formSnap=null;
+function _formSig(){
+  const f=formState||{};
+  return JSON.stringify(['date','type','cat','mid','sub','place','content','income','expense','pay','note','discount','discountPct','memo']
+    .map(function(k){ const v=f[k]; return (v===null||v===undefined)?'':String(v).trim(); }));
+}
+function _formSnapTake(){ try{ syncFormInputs(); }catch(e){} _formSnap=_formSig(); }
+function _formDirty(){
+  const fp=document.getElementById('form-page');
+  if(!fp||!fp.classList.contains('active')||_formSnap===null) return false;
+  try{ syncFormInputs(); }catch(e){}
+  return _formSig()!==_formSnap;
+}
+function backFromForm() {
+  if(_formDirty() && !confirm('입력한 내용이 사라집니다. 나갈까요?')) return;
+  _formSnap=null;
+  if(selectedRecord){showPage('detail-page');}else{showPage('main-page');}
+}
 
 // Android 뒤로가기 통합 진입점 (MainActivity.kt에서 호출)
 // 반환값: true = 처리 완료(앱 종료 X), false = 메인에서 호출됨(앱 종료 다이얼로그 띄울지 결정)
@@ -1430,6 +1455,8 @@ function handleAndroidBack(){
   ];
   for(const id of overlays){
     const el = document.getElementById(id);
+    // '-overlay'는 모두 동적으로 만든 것 → 숨기지 말고 지운다 (숨기기만 하면 다음 뒤로가기가 헛돌았다, 2026-09-28)
+    if(el && id.endsWith('-overlay')){ el.remove(); return true; }
     if(el && (el.style.display === 'flex' || el.style.display === 'block')){
       el.style.display = 'none';
       return true;
@@ -1443,7 +1470,8 @@ function handleAndroidBack(){
   
   // 2) 일자 패널이 열려 있으면 닫기
   const dayPanel = document.getElementById('day-panel');
-  if(!isWideLayout() && dayPanel && dayPanel.style.display !== 'none' && dayPanel.style.display !== ''){
+  if(!isWideLayout() && dayPanel && dayPanel.style.display !== 'none' && dayPanel.style.display !== ''
+     && document.getElementById('main-page').classList.contains('active')){   // 다른 화면에서는 그 화면의 뒤로가기를 먼저 (2026-09-28)
     closePanel();
     return true;
   }
@@ -1520,7 +1548,8 @@ function setTab(tab) {
       const diffDays = Math.round((targetSunday - todaySunday) / (1000*60*60*24));
       weekOffset = Math.round(diffDays / 7);
     }
-    syncCurrentFromWeek();
+    // syncCurrentFromWeek()를 부르지 않는다 — 1일이 든 주의 일요일은 대개 전달이라
+    // 월→주→월로 오가면 보던 달이 한 달 앞당겨졌다 (2026-09-28). 주를 옮길 때(‹ ›)만 맞춘다
   }
   renderMain();
 }
@@ -1617,8 +1646,9 @@ function syncCurrentFromWeek(){
   currentYear = base.getFullYear();
   currentMonth = base.getMonth();
 }
-function prevWeek(){ weekOffset--; syncCurrentFromWeek(); renderMain(); }
-function nextWeek(){ weekOffset++; syncCurrentFromWeek(); renderMain(); }
+// 주를 옮기면 날짜 선택을 비운다 — 넓은 화면에서 오른쪽 패널이 옛 주의 날짜를 계속 보여 주던 것 (2026-09-28)
+function prevWeek(){ weekOffset--; syncCurrentFromWeek(); closePanel(); renderMain(); }
+function nextWeek(){ weekOffset++; syncCurrentFromWeek(); closePanel(); renderMain(); }
 // 월 직접 선택 (달력 탭의 "2026.04" 텍스트 터치 시)
 function openMonthPicker(){
   const inp = document.createElement('input');
@@ -1659,7 +1689,7 @@ function openWeekPicker(){
   document.body.appendChild(inp);
   inp.addEventListener('change', function(){
     if(inp.value){
-      const picked = new Date(inp.value);
+      const _p = inp.value.split('-').map(Number); const picked = new Date(_p[0], _p[1]-1, _p[2]);   // 지역 시각으로 (UTC로 읽으면 일요일이 전 주로 갔다)
       // 오늘과 picked 사이의 주 차이 계산
       const todaySunday = new Date(today);
       todaySunday.setDate(todaySunday.getDate() - todaySunday.getDay());
@@ -1706,8 +1736,10 @@ function renderWeekHTML(){
     visibleRecs.forEach(r=>{
       h+='<div class="week-day-sub" style="background:'+getCatBgColor(r.cat)+'" onclick="event.stopPropagation();openDetail('+r.id+')">';
       h+='<span class="week-day-sub-left">'+escapeHTML(r.mid)+' · '+escapeHTML(r.sub)+' · '+escapeHTML(r.place)+'</span>';
-      const _s = r.income ? fmtSignedAmount(r.income, true) : fmtSignedAmount(r.expense, false);
-      h+='<span style="color:'+_s.color+';font-weight:600">'+_s.sign+_s.abs+'</span></div>';
+      // 입금·출금이 둘 다 있는 기록은 둘 다 보여 준다 (예전엔 입금만 보여 출금이 빠졌다, 2026-09-28)
+      const _amt = [r.income?fmtSignedAmount(r.income,true):null, r.expense?fmtSignedAmount(r.expense,false):null].filter(Boolean)
+        .map(function(_s){ return '<span style="color:'+_s.color+'">'+_s.sign+_s.abs+'</span>'; }).join(' / ');
+      h+='<span style="font-weight:600;white-space:nowrap">'+_amt+'</span></div>';
     });
     if(recs.length>3){
       if(isExpanded){
@@ -1786,7 +1818,7 @@ function renderListHTML(){
   let h='';
   h+=listNavHTML();
   h+='<div class="list-body">';
-  if(mr.length===0) h+='<div class="empty-msg">'+((listFilterCats.size||listFilterTypes.size)?'필터에 맞는 기록이 없습니다.':'당월 기록이 없습니다.')+'</div>';
+  if(mr.length===0) h+='<div class="empty-msg">'+((listFilterCats.size||listFilterTypes.size||listFilterPay)?'필터에 맞는 기록이 없습니다.':'당월 기록이 없습니다.')+'</div>';
   mr.forEach(function(r){h+=recordRowHTML(r,true);});
   h+='</div>';
   return h;
@@ -1807,7 +1839,11 @@ function recordRowHTML(r, compact){
     +'<div style="font-size:'+sF+'px;color:var(--text-muted)">'+escapeHTML(r.pay||'')+'</div></div></div>';
 }
 // 패널
+let _panelLastDate=null;
 function renderPanel(dateStr){
+  // 다른 날짜의 패널을 그리면 선택을 비운다 (+추가 저장·탭 전환·오늘로 등 selectDate를 거치지 않는 길 포함, 2026-09-28)
+  if(_panelLastDate!==null&&dateStr!==_panelLastDate){ panelSelectMode=false; panelSelectedIds.clear(); }
+  _panelLastDate=dateStr;
   const bd=byDate(); const recs=bd[dateStr]||[];
   const [yr,mo,dd]=dateStr.split('-');
   const inc=recs.filter(r=>r.income&&r.cat==='수입').reduce((s,r)=>s+(r.income||0),0); const exp=recs.filter(r=>r.expense&&r.cat==='지출').reduce((s,r)=>s+(r.expense||0),0);
@@ -1817,7 +1853,10 @@ function renderPanel(dateStr){
   if(panelSelectMode){
     document.getElementById('panel-sub').textContent = '선택됨: '+panelSelectedIds.size+'건';
   } else {
-    let sub=recs.length+'건'; if(inc>0)sub+='  +'+fmtK(inc); if(exp>0)sub+='  -'+fmtK(exp);
+    let sub=recs.length+'건';
+    // 환불만 있는 날(지출 합계 음수)·수입 취소만 있는 날도 합계를 보여 준다 (부호는 목록과 같은 규칙, 2026-09-28)
+    if(inc){const _i=fmtSignedAmount(inc,true); sub+='  '+_i.sign+_i.abs;}
+    if(exp){const _e=fmtSignedAmount(exp,false); sub+='  '+_e.sign+_e.abs;}
     document.getElementById('panel-sub').textContent=sub;
   }
   // 선택 버튼 활성화 표시 + 선택 모드면 "전체"/"해제" 라벨로 전환
@@ -1920,6 +1959,7 @@ function openEditForm(id){
   if(ft) ft.textContent='기록 수정';
   showPage('form-page');
   renderFormBody();
+  _formSnapTake();
 }
 // 거래 복제: 현재 거래의 모든 필드 그대로 + 날짜만 오늘로 미리 채워 입력 폼 열기
 function copyRecord(){
@@ -1947,6 +1987,7 @@ function copyRecord(){
   if(ft) ft.textContent = '기록 복제';
   showPage('form-page');
   renderFormBody();
+  _formSnapTake();
 }
 
 // ─── 패널 멀티 선택 기능 ───────────────────────────
@@ -1979,6 +2020,7 @@ function clearPanelSelection(){
 }
 // 선택된 거래 복제
 function copySelectedPanel(){
+  _panelKeepShownOnly();
   if(panelSelectedIds.size === 0){ alert('선택된 거래가 없습니다.'); return; }
   const srcRecs = records.filter(r => panelSelectedIds.has(r.id));
   if(srcRecs.length === 0) return;
@@ -2016,7 +2058,13 @@ function copySelectedPanel(){
   renderPanel(newDate);
 }
 // 선택된 거래 삭제
+// 선택 목록에서 지금 패널 날짜의 기록만 남긴다 (안 보이는 기록이 지워지지 않게 하는 이중 안전장치)
+function _panelKeepShownOnly(){
+  const shown=new Set(records.filter(r=>r.date===selectedDate).map(r=>r.id));
+  [...panelSelectedIds].forEach(function(id){ if(!shown.has(id)) panelSelectedIds.delete(id); });
+}
 function deleteSelectedPanel(){
+  _panelKeepShownOnly();
   if(panelSelectedIds.size === 0){ alert('선택된 거래가 없습니다.'); return; }
   const count = panelSelectedIds.size;
   if(!confirm('선택된 거래 '+count+'건을 삭제합니다.\n\n복구할 수 없습니다. 계속할까요?')) return;
@@ -2042,19 +2090,26 @@ function doDelete(){
     // 검색에서 진입한 경우: 검색 페이지로 돌아가서 결과 갱신
     detailFrom = null;
     showPage('search-page');
+    renderSearchChrome();
     doSearch();  // 현재 input 값으로 결과 다시 그림 (방금 삭제한 항목은 제외됨)
+    // 보던 위치로 (예전엔 삭제하면 목록 맨 위로 갔다, 2026-09-28)
+    if(savedScrollPos.search > 0){
+      const y=savedScrollPos.search;
+      requestAnimationFrame(() => { window.scrollTo(0, y); savedScrollPos.search = 0; });
+    }
   } else {
     backToMain();
   }
 }
 // 폼
 function openAddForm(){editingId=null;selectedRecord=null;showFormPage({date:selectedDate||todayStr,type:'일반',cat:'',sub:'',place:'',content:'',income:'',expense:'',pay:'',note:'',discount:'',discountPct:'',memo:''});}
-function openAddFormFromFab(){selectedDate=todayStr;editingId=null;selectedRecord=null;showFormPage({date:todayStr,type:'일반',cat:'',sub:'',place:'',content:'',income:'',expense:'',pay:'',note:'',discount:'',discountPct:'',memo:''});}
+function openAddFormFromFab(){editingId=null;selectedRecord=null;showFormPage({date:todayStr,type:'일반',cat:'',sub:'',place:'',content:'',income:'',expense:'',pay:'',note:'',discount:'',discountPct:'',memo:''});}
 function showFormPage(r){
   formMoreOpen=false;
   formState={date:r.date||todayStr,type:r.type||'일반',cat:r.cat||'',mid:r.mid||'',sub:r.sub||'',pay:r.pay||'',place:r.place||'',content:r.content||'',income:r.income||'',expense:r.expense||'',note:r.note||'',discount:r.discount||'',discountPct:r.discountPct||'',memo:r.memo||''};
   document.getElementById('form-title').textContent=editingId?'기록 수정':'기록 추가';
   renderFormBody(); showPage('form-page');
+  _formSnapTake();
 }
 function renderFormBody(){
   _placeIdx=null;   // 소제목 추천 목록은 이 화면에서 처음 입력할 때 새로 만든다
@@ -2143,7 +2198,7 @@ function _moveAmountForCat(){
 let _placeIdx=null;
 function _buildPlaceIdx(){
   if(_placeIdx) return _placeIdx;
-  const m={};
+  const m=Object.create(null);   // 소제목이 '__proto__'·'constructor'여도 안전하게
   records.forEach(function(r){
     const p=(r.place||'').trim(); if(!p) return;
     const o=m[p]||(m[p]={place:p,count:0,last:null});
@@ -2185,7 +2240,9 @@ function pickPlaceSuggest(el){
     }
     const t=L.type==='신용'?'신용':'일반';
     // 사용자가 직접 일반/카드를 골랐다면 다른 유형의 지갑으로 바꾸지 않는다
-    if(!formState.pay&&L.pay&&!(formState.typeTouched&&formState.type!==t)){
+    // 수입 기록에는 카드를 채우지 않는다 (카드로는 입금 불가 — 채우면 저장이 막혔다, 2026-09-28)
+    const _incomeForm=formState.cat==='수입'||!!formState.income;
+    if(!formState.pay&&L.pay&&!(formState.typeTouched&&formState.type!==t)&&!(t==='신용'&&_incomeForm)){
       const pays=t==='신용'?[...new Set([...loadCardSettings().filter(c=>!c.closed).map(c=>c.card),...PAY_CREDIT])]:loadPayGeneral();
       if(pays.indexOf(L.pay)>=0){ formState.type=t; formState.pay=L.pay; }
     }
@@ -2220,8 +2277,10 @@ function saveForm(){
   const discount=parseFloat((document.getElementById('f-discount')?.value||'').replace(/,/g,''))||null;
   const discountPct=parseFloat(document.getElementById('f-discountPct')?.value)||null;
   const memo=(document.getElementById('f-memo')?.value||'').trim();
-  if(!date||!cat||!place) return alert('날짜, 대분류, 소제목은 필수입니다.');
-  if(!income&&!expense) return alert('수입 또는 지출 금액을 입력하세요.');
+  // 빠진 칸을 이름으로 알려 주고 그 칸으로 옮겨 준다 (2026-09-28)
+  const _miss=[!date&&'날짜',!cat&&'대분류',!place&&'소제목'].filter(Boolean);
+  if(_miss.length){ alert(_miss.join(', ')+'을(를) 입력하세요.'); const _f=!date?'f-date':(!place&&cat?'f-place':null); if(_f&&document.getElementById(_f)) document.getElementById(_f).focus(); return; }
+  if(!income&&!expense){ alert('입금 또는 출금 금액을 입력하세요.'); const _a=document.getElementById('f-expense')||document.getElementById('f-income'); if(_a) _a.focus(); return; }
   // 카드로는 입금을 받지 않는다 — 카드 대금·계좌 잔고 계산이 출금만 보므로 입금은 어디에도 반영되지 않았다 (2026-09-28 사용자 결정)
   if(type==='신용'&&income) return alert('카드로는 입금을 기록할 수 없습니다.\n\n'
     +'· 카드 환불·결제 금액 할인: 지출에 마이너스 금액(예: -5,000)\n'
@@ -2257,19 +2316,25 @@ function toChosung(s){
 function _isChoOnly(t){ return /^[ㄱ-ㅎ]+$/.test(t); }
 // '9,000' '9000원' '5만' '1.5만' '3천' → 숫자, 아니면 null
 function parseKrAmount(t){
-  const m=String(t).replace(/,/g,'').replace(/원$/,'').match(/^(-)?(\d+(?:\.\d+)?)(만|천)?$/);
+  // 단위: 억·천만·백만·만·천 (2026-09-28: '5천만' '1억'도 읽음)
+  const m=String(t).replace(/,/g,'').replace(/원$/,'').match(/^(-)?(\d+(?:\.\d+)?)(억|천만|백만|만|천)?$/);
   if(!m) return null;
-  let v=parseFloat(m[2]); if(m[3]==='만') v*=10000; else if(m[3]==='천') v*=1000;
+  const U={'억':1e8,'천만':1e7,'백만':1e6,'만':1e4,'천':1e3};
+  let v=parseFloat(m[2]); if(m[3]) v*=U[m[3]];
   return Math.round(v)*(m[1]?-1:1);
 }
+// 검색어의 금액: 단위 없는 소수(1.5)는 금액으로 보지 않는다 — 반올림돼 2원 기록이 찾아졌다 (2026-09-28)
+function _searchAmt(t){ return /^-?\d+\.\d+원?$/.test(String(t).replace(/,/g,'')) ? null : parseKrAmount(t); }
 function parseSearchQuery(q){
   const terms=[];
+  // '5만 이상'처럼 띄어 써도 '5만이상'과 같게 (2026-09-28)
+  q=String(q||'').replace(/(\S)\s+(이상|이하|초과|미만)(?=\s|$)/g,'$1$2');
   String(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean).forEach(function(t){
     let m=t.match(/^(>=|<=|>|<)(.+)$/);
-    if(m){ const v=parseKrAmount(m[2]); if(v!==null){ terms.push({kind:'cmp',op:m[1],v:Math.abs(v),raw:t}); return; } }
+    if(m){ const v=_searchAmt(m[2]); if(v!==null){ terms.push({kind:'cmp',op:m[1],v:Math.abs(v),raw:t}); return; } }
     m=t.match(/^(.+?)(이상|이하|초과|미만)$/);
-    if(m){ const v=parseKrAmount(m[1]); if(v!==null){ terms.push({kind:'cmp',op:{'이상':'>=','이하':'<=','초과':'>','미만':'<'}[m[2]],v:Math.abs(v),raw:t}); return; } }
-    const amt=parseKrAmount(t);
+    if(m){ const v=_searchAmt(m[1]); if(v!==null){ terms.push({kind:'cmp',op:{'이상':'>=','이하':'<=','초과':'>','미만':'<'}[m[2]],v:Math.abs(v),raw:t}); return; } }
+    const amt=_searchAmt(t);
     if(amt!==null){ terms.push({kind:'num',v:amt,raw:t.replace(/,/g,'').replace(/원$/,'')}); return; }
     if(_isChoOnly(t)){ terms.push({kind:'cho',raw:t}); return; }
     terms.push({kind:'text',raw:t});
@@ -2330,14 +2395,15 @@ function showSearch(){
   doSearch();
   setTimeout(()=>document.getElementById('search-input').focus(),100);
 }
-// 기간 계산 (통계의 빠른 선택과 같은 규칙)
+// 기간 계산. 이번 달·최근 3개월·올해는 모두 그 기간 끝(이달 말·12월 31일)까지 — 미리 넣은 미래 기록도 찾아진다
+//  (통계 빠른 선택은 오늘까지라 미래 기록이 있으면 합계가 다를 수 있다 — 15장)
 function _searchPeriodRange(){
   const s=searchState, y=today.getFullYear(), m=today.getMonth()+1, last=(yy,mm)=>new Date(yy,mm,0).getDate();
   let a;
   switch(s.period){
     case 'this': return [_ymd(y,m,1),_ymd(y,m,last(y,m))];
     case 'prev': a=_ymAdd(y,m,-1); return [_ymd(a[0],a[1],1),_ymd(a[0],a[1],last(a[0],a[1]))];
-    case '3m': a=_ymAdd(y,m,-2); return [_ymd(a[0],a[1],1),todayStr];
+    case '3m': a=_ymAdd(y,m,-2); return [_ymd(a[0],a[1],1),_ymd(y,m,last(y,m))];   // '이번 달'과 같이 이달 말까지 (미리 넣은 기록이 3개월에서만 빠지던 것, 2026-09-28)
     case 'year': return [_ymd(y,1,1),_ymd(y,12,31)];
     case 'lastyear': return [_ymd(y-1,1,1),_ymd(y-1,12,31)];
     case 'custom': return [s.from||'0000-00-00',s.to||'9999-99-99'];
@@ -2600,6 +2666,9 @@ function statsPreset(k){
 function showRangeSummary(){
   const rs=document.getElementById('range-start')?.value; const re=document.getElementById('range-end')?.value;
   if(!rs||!re){alert('시작일과 종료일을 입력하세요.');return;}
+  // 날짜 모양·연도 확인 — PC에서 연도를 다섯 자리로 치면 화면이 멈추고 제목만 바뀌었다 (2026-09-28)
+  const _okD=function(d){ return /^\d{4}-\d{2}-\d{2}$/.test(d) && +d.slice(0,4)>=1900 && +d.slice(0,4)<=2100; };
+  if(!_okD(rs)||!_okD(re)){alert('날짜를 1900~2100년 사이의 올바른 날짜로 입력하세요.');return;}
   if(rs>re){alert('시작일이 종료일보다 늦습니다.');return;}
   // 모드 표시 + 제목 갱신
   annualPageMode = 'range';
@@ -2611,7 +2680,9 @@ function showRangeSummary(){
 }
 
 // ══ 설정 함수 복원 ══
-function showSettings(){showPage('settings-page');renderSettings();}
+// 잔고 현황의 경고 링크로 카드·지갑 설정에 갔으면 뒤로가기로 잔고 현황에 돌아온다 (2026-09-28)
+let navReturnBalance=false;
+function showSettings(){navReturnBalance=false;showPage('settings-page');renderSettings();}
 function renderSettings(){
   const el=document.getElementById('settings-body'); if(!el) return;
   const s=loadSettings();
@@ -2719,10 +2790,9 @@ function saveAsDefault(){
     loansAccounts: loadLoansAccounts()
   };
   // localStorage에 저장 (두 키 모두 - 호환성)
-  try{
-    STORE.setItem('tbdr_settings_saved', JSON.stringify(snapshot));
-    saveDefaultCategories(snapshot);
-  }catch(e){console.error('저장 실패:', e);}
+  // 앱 안 '저장됨' 사본 — 실패해도 파일 저장은 계속하되 알려 준다 (2026-09-28)
+  if(!_lsSet('tbdr_settings_saved', JSON.stringify(snapshot)) || !saveDefaultCategories(snapshot))
+    alert('앱 안에 설정 사본을 저장하지 못했습니다(저장 공간 부족).\n설정 파일은 계속 내려받습니다.');
   
   const json=JSON.stringify(snapshot, null, 2);
   const filename='TBDR_json_'+getKSTFileStamp()+'.json';
@@ -2810,19 +2880,44 @@ function _validateSettingsData(data){
   }
   return null;
 }
+// 분류·카드·지갑·저축·대출 5개 설정을 한꺼번에 교체 (설정 파일 복원 · 초기화 공용, 2026-09-28)
+//  · 대분류는 고정 5개만 남긴다 (파일에 다른 대분류가 있으면 버리고, 없는 대분류는 빈 칸으로)
+//  · 기록이 있는 카드가 새 목록에 없으면 '해지한 카드'로 남긴다 — 지우면 그 카드 사용액이 잔고에서 빠지지 않는다
+//  · 하나라도 저장에 실패하면 5개 모두 원래대로 되돌리고 false
+const _FIXED_CATS5=['수입','이체대체','지출','저축','대출'];
+function _keptCardsFor(newCards){
+  const names=new Set((newCards||[]).map(function(c){return c.card;}));
+  return loadCardSettings().filter(function(c){ return !names.has(c.card) && _cardRecCount(c.card)>0; })
+    .map(function(c){ const x=Object.assign({},c); if(!x.closed) x.closed=todayStr; return x; });
+}
+function _replaceSettings(set){
+  const keys=[CATEGORIES_KEY,CARD_STORAGE,PAY_GENERAL_KEY,SAVINGS_KEY,LOANS_KEY];
+  const snap={}; keys.forEach(function(k){ try{ snap[k]=STORE.getItem(k); }catch(e){ snap[k]=null; } });
+  const cats={}; _FIXED_CATS5.forEach(function(c){ cats[c]=(set.cats&&set.cats[c]&&typeof set.cats[c]==='object')?set.cats[c]:{}; });
+  let ok=saveCategories(cats);
+  if(ok&&set.cards) ok=saveCardSettings(set.cards.concat(_keptCardsFor(set.cards)));
+  if(ok&&set.pay) ok=savePayGeneral(set.pay);
+  if(ok&&set.savs) ok=saveSavingsAccounts(set.savs);
+  if(ok&&set.loans) ok=saveLoansAccounts(set.loans);
+  if(!ok){
+    keys.forEach(function(k){ try{ if(snap[k]===null) STORE.removeItem(k); else STORE.setItem(k,snap[k]); }catch(e){} });
+    alert('설정을 바꾸지 못해 원래대로 되돌렸습니다.');
+  }
+  return ok;
+}
 function applySettingsJSON(jsonStr){
   try{
     const data=JSON.parse(jsonStr);
     const _verr=_validateSettingsData(data);
     if(_verr) throw new Error(_verr);
-    if(!confirm('설정 파일을 불러올까요?\n중분류·소분류·카드·계좌·저축·대출이 모두 교체됩니다.')) return;
-    // mids 또는 categories 둘 다 호환
     const catsToLoad=data.mids||data.categories;
-    saveCategories(catsToLoad);
-    if(data.cardSettings) saveCardSettings(data.cardSettings);
-    if(data.payGeneral) savePayGeneral(data.payGeneral);
-    if(data.savingsAccounts) saveSavingsAccounts(data.savingsAccounts);
-    if(data.loansAccounts) saveLoansAccounts(data.loansAccounts);
+    const extra=Object.keys(catsToLoad).filter(function(c){return _FIXED_CATS5.indexOf(c)<0;});
+    const kept=data.cardSettings?_keptCardsFor(data.cardSettings):[];
+    if(!confirm('설정 파일을 불러올까요?\n중분류·소분류·카드·계좌·저축·대출이 모두 교체됩니다.'
+      +(extra.length?'\n\n※ 이 앱에 없는 대분류는 건너뜁니다: '+extra.join(', '):'')
+      +(kept.length?'\n\n※ 기록이 있는 카드는 지우지 않고 \'해지한 카드\'로 남깁니다: '+kept.map(function(c){return c.card;}).join(', '):''))) return;
+    if(!sessionBigChangeOK('중분류·소분류·카드·계좌·저축·대출이 설정 파일 내용으로 교체됩니다.')) return;
+    if(!_replaceSettings({cats:catsToLoad,cards:data.cardSettings,pay:data.payGeneral,savs:data.savingsAccounts,loans:data.loansAccounts})) return;
     closeDefaultSettingsOverlay();
     alert('✅ 설정 불러오기 완료!');
     renderSettings();
@@ -2832,20 +2927,15 @@ function applySettingsJSON(jsonStr){
 }
 
 function resetToBlank(){
-  if(!confirm('초기화할까요?\n대분류(수입/이체대체/지출/저축/대출)만 유지하고\n중분류·소분류·카드·계좌·저축·대출이 모두 삭제됩니다.')) return;
+  const kept=_keptCardsFor([]);
+  if(!confirm('초기화할까요?\n대분류(수입/이체대체/지출/저축/대출)만 유지하고\n중분류·소분류·카드·계좌·저축·대출이 모두 삭제됩니다.'
+    +(kept.length?'\n\n※ 기록이 있는 카드는 지우지 않고 \'해지한 카드\'로 남깁니다: '+kept.map(function(c){return c.card;}).join(', '):''))) return;
   if(!confirm('⚠️ 최종 확인\n\n이 작업은 되돌릴 수 없습니다.\n정말로 초기화하시겠습니까?')) return;
-  // 대분류만 유지, 중분류/소분류 모두 비우기
-  const cats=loadCategories();
-  const blank={};
-  Object.keys(cats).forEach(function(cat){ blank[cat]={}; });
-  saveCategories(blank);
-  saveCardSettings([]);
-  savePayGeneral([]);
-  saveSavingsAccounts([]);
-  saveLoansAccounts([]);
-  const el=document.getElementById('default-settings-overlay');if(el)el.remove();
-  alert('✅ 초기화 완료!\n대분류 '+Object.keys(blank).length+'개만 유지됩니다.');
-  renderSettings();
+  if(!sessionBigChangeOK('서버 가계부의 중분류·소분류·카드·계좌·저축·대출이 모두 지워집니다.')) return;
+  if(!_replaceSettings({cats:{},cards:[],pay:[],savs:[],loans:[]})) return;
+  alert('✅ 초기화 완료!\n대분류 '+_FIXED_CATS5.length+'개만 유지됩니다.');
+  closeDefaultSettingsOverlay();   // 초기 설정 화면에 있었다면 설정 화면으로 (예전엔 옛 개수가 적힌 화면에 남았다)
+  if(document.getElementById('settings-page').classList.contains('active')) renderSettings();
 }
 
 function showCategoryManager(){
@@ -3102,7 +3192,7 @@ function showPayMethodSettings(){
 
 function showCardSetting(){showPage('card-setting-page');renderCardSetting();}
 
-function showAccountBalance(){showPage('account-balance-page');renderAccountBalance();}
+function showAccountBalance(){navReturnBalance=false;showPage('account-balance-page');renderAccountBalance();}
 
 function renderAccountBalance(){
   const accounts = loadPayGeneral();
@@ -3150,7 +3240,7 @@ function renderAccountBalance(){
   // 연결 계좌가 없는 카드 중 실제로 쓴 기록이 있는 것 → 잔고가 실제보다 많게 보일 수 있음
   const unlinked = cards.filter(c => _cardUnlinked(c) && records.some(r => r.pay === c.card && r.expense));
   if(unlinked.length){
-    h += '<div class="card-warn" style="cursor:pointer;margin-bottom:14px" onclick="showCardSetting()">⚠️ 연결 계좌가 없는 카드: <b>'+unlinked.map(c=>escapeHTML(c.card)).join(', ')+'</b><br>이 카드로 쓴 돈은 잔고에서 빠지지 않아 <b>잔고가 실제보다 많게</b> 보일 수 있습니다. <u>카드 설정 열기 ›</u></div>';
+    h += '<div class="card-warn" style="cursor:pointer;margin-bottom:14px" onclick="showCardSetting();navReturnBalance=true">⚠️ 연결 계좌가 없는 카드: <b>'+unlinked.map(c=>escapeHTML(c.card)).join(', ')+'</b><br>이 카드로 쓴 돈은 잔고에서 빠지지 않아 <b>잔고가 실제보다 많게</b> 보일 수 있습니다. <u>카드 설정 열기 ›</u></div>';
   }
   
   // ─────────── 접힌 그룹 4개 ───────────
@@ -3235,7 +3325,7 @@ function renderCollapseGroup(key, title, iconSvg, sumValue, sumColor, openByDefa
 // ─── 각 그룹 body 렌더 ───
 function renderWalletBody(accounts, balances){
   if(accounts.length === 0){
-    return '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">등록된 계좌가 없습니다.<br><a onclick="showPayMethodSettings()" style="color:var(--accent);cursor:pointer;text-decoration:underline">계좌 추가하기</a></div>';
+    return '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">등록된 계좌가 없습니다.<br><a onclick="showPayMethodSettings();navReturnBalance=true" style="color:var(--accent);cursor:pointer;text-decoration:underline">계좌 추가하기</a></div>';
   }
   let h = '';
   accounts.forEach(acc => {
@@ -4247,7 +4337,8 @@ function deletePayMethod(idx){
 
 renderMain();
 
-function setFormType(val){syncFormInputs();formState.type=val;formState.pay='';formState.typeTouched=true;renderFormBody();}
+function setFormType(val){if(val===formState.type)return;   /* 이미 고른 쪽을 다시 누르면 지갑을 지우지 않음 (2026-09-28) */
+  syncFormInputs();formState.type=val;formState.pay='';formState.typeTouched=true;renderFormBody();}
 function openCSelect(title,items,current,onSelect){
   document.getElementById('cselect-overlay')?.remove();
   cSelectCallback=onSelect;
@@ -4485,7 +4576,7 @@ function periodTableHTML(md,cfg){
   const row=(label,vals,cls,bold)=>{
     const total=vals.reduce((a,b)=>a+b,0);
     if(!bold&&!total) return '';
-    return '<tr class="'+(bold?'total-row':'sub-row')+'"><td>'+(bold?'<strong>'+label+'</strong>':escapeHTML(label))+'</td>'
+    return '<tr class="'+(bold?'total-row':'sub-row')+'"><td title="'+escapeHTML(label)+'">'+(bold?'<strong>'+label+'</strong>':escapeHTML(label))+'</td>'
       +vals.map(v=>'<td class="'+cls+'">'+fmtV(v)+'</td>').join('')
       +'<td class="'+cls+'">'+fmtV(total)+'</td><td class="'+cls+'">'+fmtV(Math.round(cfg.avg(total)))+'</td></tr>';
   };
@@ -4821,6 +4912,13 @@ function refreshTodayIfChanged(){
   const s=toDateStr(now);
   if(s===todayStr) return false;
   const oldY=today.getFullYear(), oldM=today.getMonth();
+  // 주 보기는 '오늘이 있는 주'에서 몇 주 떨어졌는지(weekOffset)로 기억한다.
+  //  오늘이 다음 주로 넘어가면 보고 있던 주가 한 주 밀리므로, 지난 주를 보고 있었다면 그만큼 되돌린다 (2026-09-28)
+  if(weekOffset!==0){
+    const sunOf=function(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); return x; };
+    const dw=Math.round((sunOf(now)-sunOf(today))/(7*864e5));
+    weekOffset-=dw;
+  }
   today=now; todayStr=s;
   // 옛 '오늘'의 달을 보고 있었다면 새 오늘의 달로 따라간다
   if(currentYear===oldY && currentMonth===oldM){
@@ -4931,6 +5029,9 @@ function exportCSV(){
   a.href=url;a.download=fn;a.click();URL.revokeObjectURL(url);
 }
 // CSV 한 셀 안전하게 (쉼표/따옴표/줄바꿈 이스케이프)
+// 결산 CSV의 이름 칸: '= + - @'로 시작하면 엑셀이 수식으로 읽으므로 앞에 ' 를 붙인다 (2026-09-28)
+//  전체 기록 CSV(exportCSV)는 다시 불러오는 파일이라 csvCell 그대로 둔다
+function csvName(v){ const t=(v==null)?'':String(v); return csvCell(/^[=+\-@]/.test(t)?"'"+t:t); }
 function csvCell(v){
   if(v===null||v===undefined) return '';
   const s=String(v);
@@ -4968,7 +5069,7 @@ function exportMonthDetailCSV(){
   const lines = [];
   
   lines.push('TBDR 월별 현황');
-  lines.push(csvCell(y+'년 '+m+'월'));
+  lines.push(csvName(y+'년 '+m+'월'));
   lines.push('');
   lines.push('구분,금액');
   lines.push('수입,'+(s.totalIncome||0));
@@ -4984,7 +5085,7 @@ function exportMonthDetailCSV(){
     lines.push('[수입 분류별]');
     lines.push('소분류,금액');
     Object.entries(s.incBySub).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      lines.push(csvCell(k)+','+v);
+      lines.push(csvName(k)+','+v);
     });
     lines.push('');
   }
@@ -4994,7 +5095,7 @@ function exportMonthDetailCSV(){
     lines.push('[지출 중분류별]');
     lines.push('중분류,금액');
     Object.entries(s.expByMid).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      lines.push(csvCell(k)+','+v);
+      lines.push(csvName(k)+','+v);
     });
     lines.push('');
   }
@@ -5006,7 +5107,7 @@ function exportMonthDetailCSV(){
     // expByMidSub는 {중분류:{소분류:금액}} 중첩 객체 (calcMonthStats)
     Object.entries(s.expByMidSub).forEach(([mid,subs])=>{
       Object.entries(subs||{}).sort((a,b)=>b[1]-a[1]).forEach(([sub,v])=>{
-        lines.push(csvCell(mid)+','+csvCell(sub)+','+v);
+        lines.push(csvName(mid)+','+csvName(sub)+','+v);
       });
     });
     lines.push('');
@@ -5017,7 +5118,7 @@ function exportMonthDetailCSV(){
     lines.push('[저축 분류별]');
     lines.push('중분류,금액');
     Object.entries(s.savByMid).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      lines.push(csvCell(k)+','+v);
+      lines.push(csvName(k)+','+v);
     });
     lines.push('');
   }
@@ -5045,7 +5146,7 @@ function exportAnnualDetailCSV(){
   
   const lines = [];
   lines.push('TBDR 연간 종합결산');
-  lines.push(csvCell(y+'년'));
+  lines.push(csvName(y+'년'));
   lines.push('');
   
   // 표 헤더: 항목, 1월~12월, 연간합계, 월평균
@@ -5056,7 +5157,7 @@ function exportAnnualDetailCSV(){
   function sumRow(label, vals){
     const total = vals.reduce((a,b)=>a+b, 0);
     const avg = Math.round(total/av.n);
-    return csvCell(label)+','+vals.join(',')+','+total+','+avg;
+    return csvName(label)+','+vals.join(',')+','+total+','+avg;
   }
   
   // ── 수입 ──
@@ -5138,8 +5239,8 @@ function exportRangeSummaryCSV(){
       const mid = r.mid||'기타';
       const sub = r.sub||'기타';
       expByMid[mid] = (expByMid[mid]||0) + r.expense;
-      const key = mid+'|'+sub;
-      expByMidSub[key] = (expByMidSub[key]||0) + r.expense;
+      // 중첩 {중분류:{소분류:금액}} — 예전엔 '중분류|소분류'로 이어 붙여 이름에 |가 있으면 칸이 틀어졌다 (2026-09-28)
+      (expByMidSub[mid]||(expByMidSub[mid]={}))[sub] = ((expByMidSub[mid]||{})[sub]||0) + r.expense;
     }
     if(r.expense && r.cat==='저축'){
       totalSav += r.expense;
@@ -5148,14 +5249,14 @@ function exportRangeSummaryCSV(){
     }
     if(r.expense && r.cat==='대출'){
       totalLoan += r.expense;
-      const k = r.sub||r.mid||'기타';
+      const k = r.mid||'기타';   // 화면 표와 같이 중분류별 (2026-09-28)
       loanBySub[k] = (loanBySub[k]||0) + r.expense;
     }
     if(r.cat==='이체대체' && r.expense){
       // 이체는 출금·입금 두 줄로 입력하므로 출금 쪽만 센다 (화면·calcMonthStats와 같은 기준)
       const amt = r.expense;
       totalTrans += amt;
-      const k = r.sub||r.mid||'기타';
+      const k = r.mid||'기타';   // 화면 표와 같이 중분류별 (2026-09-28)
       transBySub[k] = (transBySub[k]||0) + amt;
     }
   });
@@ -5163,7 +5264,7 @@ function exportRangeSummaryCSV(){
   
   const lines = [];
   lines.push('TBDR 범위 종합결산');
-  lines.push(csvCell(start+' ~ '+end));
+  lines.push(csvName(start+' ~ '+end));
   lines.push('총 거래 건수,'+filtered.length);
   lines.push('');
   
@@ -5181,7 +5282,7 @@ function exportRangeSummaryCSV(){
     lines.push('['+title+']');
     lines.push('분류,금액');
     Object.entries(obj).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      lines.push(csvCell(k)+','+v);
+      lines.push(csvName(k)+','+v);
     });
     lines.push('');
   }
@@ -5192,16 +5293,17 @@ function exportRangeSummaryCSV(){
   if(Object.keys(expByMidSub).length){
     lines.push('[지출 중분류+소분류별]');
     lines.push('중분류,소분류,금액');
-    Object.entries(expByMidSub).forEach(([k,v])=>{
-      const [mid,sub] = k.split('|');
-      lines.push(csvCell(mid)+','+csvCell(sub)+','+v);
+    Object.keys(expByMidSub).sort((a,b)=>expByMid[b]-expByMid[a]).forEach(mid=>{
+      Object.entries(expByMidSub[mid]).sort((a,b)=>b[1]-a[1]).forEach(([sub,v])=>{
+        lines.push(csvName(mid)+','+csvName(sub)+','+v);
+      });
     });
     lines.push('');
   }
   
   appendSection('저축 분류별', savBySub);
-  appendSection('대출 분류별', loanBySub);
-  appendSection('이체대체 분류별', transBySub);
+  appendSection('대출 중분류별', loanBySub);
+  appendSection('이체대체 중분류별', transBySub);
   
   const csv = lines.join('\n');
   const fn = 'TBDR_범위결산_'+start+'_'+end+'_'+getKSTFileStamp()+'.csv';
@@ -5443,7 +5545,9 @@ function confirmClearAll(){
     return;
   }
   if(!confirm('정말로 모든 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
-  if(!confirm('⚠️ 최종 확인\n\n모든 가계부 기록이 영구 삭제됩니다.\n정말로 진행하시겠습니까?')) return;
+  if(!confirm('⚠️ 최종 확인\n\n모든 가계부 기록이 영구 삭제됩니다.'
+    +(syncGetPass()?'\n\n※ 이 뒤에 [서버에 저장]을 누르면 서버 가계부(배우자 기기에서 불러오는 내용)도 비워집니다.':'')
+    +'\n정말로 진행하시겠습니까?')) return;
   records=[];save();alert('전체 데이터가 삭제되었습니다.');renderSettings();
 }
 // 분류 관리
@@ -5500,15 +5604,32 @@ function toggleAmountSign(inputId){
 }
 
 function formatAmountInput(el){
-  const raw=el.value.replace(/,/g,'');
-  if(!raw){el.value='';return;}
-  // 음수 허용: 첫 글자가 '-'이면 OK, 그 외에는 숫자만
-  if(raw === '-'){el.value='-';return;}  // 입력 도중 '-'만 있는 경우 허용
-  if(!/^-?\d+$/.test(raw)){el.value=el.value.replace(/[^0-9,\-]/g,'').replace(/(?!^)-/g,'');return;}
-  // 음수일 때 부호 보존하면서 천단위 콤마
-  const isNeg = raw.startsWith('-');
-  const digits = isNeg ? raw.slice(1) : raw;
-  el.value = (isNeg?'-':'') + numWithComma(digits);
+  // 2026-09-28 다시 씀:
+  //  · 붙여 넣은 소수(12,000.50)는 소수점 아래를 버린다 — 예전엔 점만 지워 1,200,050으로 저장됐다
+  //    (방금 '.'을 친 경우는 점만 지운다 — 숫자 중간에 실수로 친 점 때문에 뒷자리가 사라지지 않게)
+  //  · 쉼표가 새로 생겨도 커서가 끝으로 튀지 않는다 (중간에 숫자를 넣으면 다음 숫자가 끝에 붙던 것)
+  //  · 15자리까지만 (그 이상은 저장할 때 숫자가 깨진다)
+  let v=el.value||'';
+  let caret=(typeof el.selectionStart==='number')?el.selectionStart:v.length;
+  const dot=v.indexOf('.');
+  if(dot>=0){
+    if(caret===dot+1){ v=v.slice(0,dot)+v.slice(dot+1); caret--; }
+    else { v=v.slice(0,dot); caret=Math.min(caret,v.length); }
+  }
+  const neg=v.replace(/^\s+/,'').charAt(0)==='-';
+  let digitsBefore=v.slice(0,caret).replace(/[^0-9]/g,'').length;
+  let digits=v.replace(/[^0-9]/g,'');
+  const lead=(digits.match(/^0+(?=\d)/)||[''])[0].length;   // 앞자리 0 정리 (09000 → 9,000)
+  digits=digits.slice(lead); digitsBefore=Math.max(0,digitsBefore-lead);
+  if(digits.length>15){ digits=digits.slice(0,15); digitsBefore=Math.min(digitsBefore,15); }
+  const out=(neg?'-':'')+(digits?digits.replace(/\B(?=(\d{3})+(?!\d))/g,','):'');
+  el.value=out;
+  // 커서: 같은 개수의 숫자 뒤로
+  let pos=neg?1:0, cnt=0;
+  if(digitsBefore>0){ for(let k=0;k<out.length;k++){ if(/\d/.test(out[k])){ cnt++; if(cnt===digitsBefore){ pos=k+1; break; } } } }
+  try{ if(document.activeElement===el) el.setSelectionRange(pos,pos); }catch(e){}
+  if(!digits){ if(el.id==='f-expense') calcDiscountPct(); return; }
+  const isNeg=neg;
   // ± 버튼 상태 동기화
   const btn = el.parentElement && el.parentElement.querySelector && el.parentElement.querySelector('.sign-toggle-btn');
   if(btn){
@@ -5531,7 +5652,7 @@ function calcDiscountPct(){
   if(discount>0 && expense>0){
     const pct=Math.round((discount/expense)*100*10)/10;
     pctEl.value=pct;
-  } else if(discount===0){
+  } else {   // 할인·출금 중 하나라도 0 이하면 %를 비운다 (예전엔 옛 %가 남아 저장됐다, 2026-09-28)
     pctEl.value='';
   }
 }
@@ -5636,7 +5757,7 @@ function getCatBgColor(cat){
 <!-- 카드설정 페이지 -->
 <div id="card-setting-page" class="page">
   <div class="page-header">
-    <button class="back-btn" onclick="showPayMethodSettings()">‹</button>
+    <button class="back-btn" onclick="if(navReturnBalance)showAccountBalance();else showPayMethodSettings()">‹</button>
     <span class="page-title">카드 관리 및 결제일 설정</span>
   </div>
   <div style="padding:16px;padding-bottom:80px" id="card-setting-body"></div>
@@ -5645,7 +5766,7 @@ function getCatBgColor(cat){
 <!-- 내 지갑 설정 페이지 -->
 <div id="pay-method-page" class="page">
   <div class="page-header">
-    <button class="back-btn" onclick="showSettings()">‹</button>
+    <button class="back-btn" onclick="if(navReturnBalance)showAccountBalance();else showSettings()">‹</button>
     <span class="page-title">내 지갑 설정</span>
   </div>
   <div style="padding:16px;padding-bottom:80px" id="pay-method-body"></div>
@@ -6205,6 +6326,7 @@ function openSyncSettings(){
   );
   if (pass === null) return;
   pass = pass.trim();
+  if (!pass) { alert('공유 암호를 입력해야 합니다.'); return; }
   // 기존 암호를 그대로 쓰는 경우는 허용하고, 새로 정하거나 바꿀 때만 8자 이상을 요구한다
   if (pass !== cur && pass.length < 8) {
     alert('암호는 8자 이상으로 정해주세요.\n\n전화번호·생일처럼 짐작하기 쉬운 값은 피해주세요.');
@@ -6213,14 +6335,14 @@ function openSyncSettings(){
 
   try {
     STORE.setItem(SYNC_NAME_KEY, name);
-    if (pass !== cur) { STORE.setItem(SYNC_PASS_KEY, pass); syncSetVer(0); }
+    // 암호가 바뀌면 다른 서버 문서다 → 버전과 '마지막 저장/불러오기' 기록도 비운다 (옛 문서 정보가 남아 보였다)
+    if (pass !== cur) { STORE.setItem(SYNC_PASS_KEY, pass); syncSetVer(0); STORE.removeItem(SYNC_INFO_KEY); }
     else { STORE.setItem(SYNC_PASS_KEY, pass); }
   } catch(e) { alert('설정 저장 실패: ' + e.message); return; }
 
   alert('✅ 공유 설정 완료\n\n이름: ' + name + '\n암호: ' + pass.replace(/./g, '•') +
         '\n\n배우자 기기에도 똑같은 암호를 입력하세요.' +
         (pass !== cur && cur ? '\n\n※ 암호를 바꾸면 서버의 저장 위치도 바뀝니다.\n주로 입력하는 기기에서 먼저 [서버에 저장]을 해주세요.' : ''));
-  if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
   if (typeof renderSettings === 'function') { try { renderSettings(); } catch(e){} }
 }
 
@@ -6422,6 +6544,10 @@ async function syncUpload(){
           (n > 0 ? '\n서버에만 있는 ' + n + '건은 되살릴 수 없습니다.' : ''))) return;
     }
 
+    // 기록 0건으로 서버의 기록을 덮으려 하면 한 번 더 묻는다 (전체 삭제 뒤 무심코 저장하는 사고 방지, 2026-09-28)
+    if (remote && records.length === 0 && (remote.recordCount || 0) > 0) {
+      if (!confirm('⚠️ 이 기기에 기록이 0건입니다.\n\n저장하면 서버의 기록 ' + remote.recordCount + '건이 모두 지워지고,\n배우자 기기도 불러오면 비워집니다.\n\n그래도 저장할까요?')) return;
+    }
     // 올리는 사이에 입력한 기록은 이번 업로드에 안 들어간다. 그 변경 표시를 지우지 않도록
     // 찍어 둔 시점의 변경 표시·시각을 기억한다 (sessionAutoUpload와 같은 방식, 2026-09-28)
     var dirtyAtSnap = null;
@@ -6460,7 +6586,9 @@ async function syncUpload(){
     alert('☁️ 서버에 저장 완료\n\n· 기록 ' + snapObj.recordCount + '건\n· 저장자: ' + me +
           '\n· 전송 크기: ' + kb + 'KB' +
           '\n\n배우자분은 앱에서 [서버에서 불러오기]를 누르면 됩니다.');
-    if (typeof renderDefaultSettings === 'function') { try { renderDefaultSettings(); } catch(e){} }
+    // 설정 화면의 '마지막 저장…' 글자를 새로 (예전엔 없는 함수를 불러 옛 글자가 남았다, 2026-09-28)
+    var sp = document.getElementById('settings-page');
+    if (sp && sp.classList.contains('active')) { try { renderSettings(); } catch(e){} }
   } catch (e) {
     alert('저장 실패\n\n' + _syncErr(e));
   }
